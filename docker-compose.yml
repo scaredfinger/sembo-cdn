@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  proxy:
+    build: .
+    ports:
+      - "8080:80"
+      - "9090:9090"  # metrics endpoint
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=3000
+      - LOG_LEVEL=info
+    depends_on:
+      - redis
+      - backend
+    volumes:
+      - ./nginx/conf:/usr/local/openresty/nginx/conf:ro
+      - ./nginx/lua:/usr/local/openresty/nginx/lua:ro
+      - ./config:/usr/local/openresty/nginx/config:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # Simple backend for testing
+  backend:
+    image: httpd:2.4-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./tests/fixtures:/usr/local/apache2/htdocs:ro
+
+volumes:
+  redis-data:
