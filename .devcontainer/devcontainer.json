@@ -1,5 +1,5 @@
 {
-  "name": "Lua Development Environment",
+  "name": "Sembo CDN",
   "build": {
     "dockerfile": "Dockerfile"
   },
@@ -25,6 +25,7 @@
   "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/dev-setup.sh",
   "mounts": [
     "source=sembo-cdn-redis-data,target=/data,type=volume",
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		"source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
   ]
 }
