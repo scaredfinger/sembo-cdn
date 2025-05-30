@@ -1,5 +1,5 @@
 {
-  "name": "OpenResty Development",
+  "name": "Lua Development Environment",
   "build": {
     "dockerfile": "Dockerfile"
   },
@@ -9,7 +9,6 @@
       "configureZshAsDefaultShell": true,
       "installOhMyZsh": true
     },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/git:1": {}
   },
   "customizations": {
@@ -25,6 +24,7 @@
   "forwardPorts": [8080, 6379],
   "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/dev-setup.sh",
   "mounts": [
-    "source=sembo-cdn-redis-data,target=/data,type=volume"
+    "source=sembo-cdn-redis-data,target=/data,type=volume",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ]
 }
