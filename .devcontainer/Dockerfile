@@ -19,11 +19,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# Install LuaJIT
-RUN curl -L https://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz | tar xz \
-    && cd LuaJIT-2.1.0-beta3 \
+# Install LuaJIT from git repository
+RUN git clone https://luajit.org/git/luajit.git \
+    && cd luajit \
     && make && make install \
-    && cd .. && rm -rf LuaJIT-2.1.0-beta3 \
+    && cd .. && rm -rf luajit \
     && ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
 
 # Install LuaRocks
