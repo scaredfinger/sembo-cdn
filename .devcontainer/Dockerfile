@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.10
 
 # Install system dependencies and Docker CLI
 RUN apt-get update && apt-get install -y \
@@ -19,19 +19,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# Install LuaJIT from git repository
-RUN git clone https://luajit.org/git/luajit.git \
-    && cd luajit \
-    && make && make install \
-    && cd .. && rm -rf luajit \
-    && ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
-
-# Install LuaRocks
-RUN curl -L https://luarocks.org/releases/luarocks-3.9.2.tar.gz | tar xz \
-    && cd luarocks-3.9.2 \
-    && ./configure --prefix=/usr/local --with-lua-include=/usr/local/include/luajit-2.1 \
-    && make && make install \
-    && cd .. && rm -rf luarocks-3.9.2
+# Install Lua and LuaRocks
+RUN apt-get update && apt-get install -y \
+    lua5.1 \
+    lua5.1-dev \
+    luarocks \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install OpenResty libraries for development (not runtime)
 RUN luarocks install lua-resty-redis \
@@ -46,7 +39,7 @@ WORKDIR /workspace
 # Set environment variables for Lua development
 ENV PATH="/usr/local/bin:$PATH"
 ENV LUA_PATH="/workspace/nginx/lua/?.lua;/workspace/nginx/lua/?/init.lua;;"
-ENV LUA_CPATH="/usr/local/lib/lua/5.1/?.so;;"
+ENV LUA_CPATH="/usr/lib/x86_64-linux-gnu/lua/5.1/?.so;/usr/local/lib/lua/5.1/?.so;;"
 
 # Default command for development
 CMD ["/bin/bash"]

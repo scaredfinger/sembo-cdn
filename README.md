@@ -41,7 +41,7 @@ curl http://localhost:9090/metrics
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Client    │───▶│ Sembo CDN   │───▶│  Backend    │
+│   Client    │───>│ Sembo CDN   │───>│  Backend    │
 └─────────────┘    └─────────────┘    └─────────────┘
                           │
                           ▼
