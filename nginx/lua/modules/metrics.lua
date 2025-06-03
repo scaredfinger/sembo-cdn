@@ -160,7 +160,7 @@ end
 -- Format a single metric line for Prometheus
 function _M.format_prometheus_line(key, value)
     -- Parse key to extract metric name and labels
-    local metric_name, labels_str = string.match(key, "^([^:]+):?(.*)?$")
+    local metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
     
     if not metric_name then
         return nil

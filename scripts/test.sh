@@ -12,12 +12,12 @@ if ! command -v busted &> /dev/null; then
 fi
 
 # Set Lua path
-export LUA_PATH="/workspace/nginx/lua/?.lua;/workspace/nginx/lua/?/init.lua;;"
+export LUA_PATH="/workspaces/sembo-cdn/nginx/lua/?.lua;/workspaces/sembo-cdn/nginx/lua/?/init.lua;;"
 
 # Run unit tests
 echo "Running unit tests..."
-cd /workspace
-busted tests/unit/ --verbose
+cd /workspaces/sembo-cdn
+busted tests/unit/ --verbose --pattern=test_
 
 # Run integration tests if services are available
 if curl -s http://redis:6379 > /dev/null 2>&1; then

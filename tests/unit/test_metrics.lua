@@ -1,44 +1,12 @@
 -- Unit tests for metrics module
--- Note: These tests require ngx.shared.metrics to be available
--- In actual testing environment, this would be mocked
+require "tests.test_helper"  -- Load ngx mocks before requiring modules
 
 describe("metrics module", function()
     local metrics = require "modules.metrics"
     
-    -- Mock ngx.shared.metrics if not available
-    if not ngx.shared then
-        ngx.shared = {
-            metrics = {
-                _data = {},
-                set = function(self, key, value)
-                    self._data[key] = value
-                    return true
-                end,
-                get = function(self, key)
-                    return self._data[key]
-                end,
-                incr = function(self, key, value)
-                    value = value or 1
-                    local current = self._data[key] or 0
-                    self._data[key] = current + value
-                    return self._data[key]
-                end,
-                get_keys = function(self)
-                    local keys = {}
-                    for k, v in pairs(self._data) do
-                        table.insert(keys, k)
-                    end
-                    return keys
-                end
-            }
-        }
-    end
-    
     before_each(function()
         -- Clear metrics before each test
-        if ngx.shared.metrics._data then
-            ngx.shared.metrics._data = {}
-        end
+        reset_ngx_mocks()
         metrics.init()
     end)
     

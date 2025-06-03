@@ -1,4 +1,6 @@
 -- Unit tests for router module
+require "tests.test_helper"  -- Load ngx mocks before requiring modules
+
 describe("router module", function()
     local router = require "modules.router"
     
