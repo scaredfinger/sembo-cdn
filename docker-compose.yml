@@ -13,19 +13,11 @@ services:
     depends_on:
       - redis
       - backend
-    volumes:
-      - ./nginx/conf:/usr/local/openresty/nginx/conf:ro
-      - ./nginx/lua:/usr/local/openresty/nginx/lua:ro
-      - ./config:/usr/local/openresty/nginx/config:ro
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
-      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: redis-server /usr/local/etc/redis/redis.conf
 
   # Simple backend for testing
   backend:

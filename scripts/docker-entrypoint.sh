@@ -4,25 +4,18 @@
 # Ensure we have defaults for required variables
 : "${REDIS_HOST:=redis}"
 : "${REDIS_PORT:=6379}"
-: "${BACKEND_HOST:=backend}"
+: "${BACKEND_HOST:=backend-service}"
 : "${BACKEND_PORT:=80}"
 : "${LOG_LEVEL:=info}"
 : "${ENV:=production}"
 
-# Fix the user directive in nginx.conf to use nogroup
-sed -i 's/^user nobody;/user nobody nogroup;/' /usr/local/openresty/nginx/conf/nginx.conf
-
-# Create a dynamic upstream configuration file
-cat > /usr/local/openresty/nginx/conf/upstream.conf << EOF
-upstream backend {
+Create a dynamic upstream configuration file
+echo "
+upstream backend-service {
     server $BACKEND_HOST:$BACKEND_PORT max_fails=3 fail_timeout=30s;
     keepalive 32;
 }
-EOF
-
-# Include the dynamic upstream in http.conf (replace the existing upstream block)
-sed -i '/upstream backend {/,/}/d' /usr/local/openresty/nginx/conf/http.conf
-echo "include /usr/local/openresty/nginx/conf/upstream.conf;" >> /usr/local/openresty/nginx/conf/http.conf
+" > /etc/nginx/conf.d/upstream.conf
 
 # Start OpenResty with environment variables available
 REDIS_HOST=$REDIS_HOST \

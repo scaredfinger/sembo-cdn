@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy configuration and Lua files
-COPY nginx/conf/ /usr/local/openresty/nginx/conf/
+COPY nginx/conf/default.conf /etc/nginx/conf.d/default.conf
 COPY nginx/lua/ /usr/local/openresty/nginx/lua/
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 

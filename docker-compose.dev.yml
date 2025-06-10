@@ -11,18 +11,8 @@ services:
       - ENV=development
     volumes:
       - .:/workspace
-      - ./nginx/conf:/usr/local/openresty/nginx/conf
-      - ./nginx/lua:/usr/local/openresty/nginx/lua
-    command: |
-      sh -c '
-        echo "Starting development server..."
-        /usr/local/openresty/bin/openresty -g "daemon off;"
-      '
     develop:
       watch:
-        - action: sync
-          path: ./nginx
-          target: /usr/local/openresty/nginx
         - action: rebuild
           path: ./Dockerfile
 
