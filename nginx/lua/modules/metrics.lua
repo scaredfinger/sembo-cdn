@@ -14,7 +14,7 @@ local GAUGE = "gauge"
 -- Initialize metrics storage
 function _M.init()
     if not metrics_dict then
-        utils.log("error", "Metrics shared dictionary not available")
+        utils.error("Metrics shared dictionary not available")
         return false
     end
     
@@ -26,7 +26,7 @@ function _M.init()
     metrics_dict:set("response_time_sum", 0)
     metrics_dict:set("response_time_count", 0)
     
-    utils.log("info", "Metrics initialized")
+    utils.info("Metrics initialized")
     return true
 end
 
@@ -46,7 +46,7 @@ function _M.inc_counter(name, value, labels)
         new_val = value
     end
     
-    utils.log("debug", "Counter " .. key .. " incremented to " .. new_val)
+    utils.debug("Counter " .. key .. " incremented to " .. new_val)
     return new_val
 end
 
@@ -59,7 +59,7 @@ function _M.set_gauge(name, value, labels)
     end
     
     metrics_dict:set(key, value)
-    utils.log("debug", "Gauge " .. key .. " set to " .. value)
+    utils.debug("Gauge " .. key .. " set to " .. value)
 end
 
 -- Record histogram value (simplified implementation)

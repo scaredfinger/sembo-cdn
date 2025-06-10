@@ -1,7 +1,7 @@
 -- Health check handler
 local cache = require "modules.cache"
 local cjson = require "cjson"
-local utils = require "modules.utils"
+local config = require "modules.config"
 
 -- Set content type
 ngx.header["Content-Type"] = "application/json"
@@ -10,8 +10,9 @@ ngx.header["Content-Type"] = "application/json"
 local redis_healthy, redis_status = cache.health_check()
 
 -- Check backend health (simplified)
-local backend_host = utils.get_env("BACKEND_HOST", "localhost")
-local backend_port = utils.get_env("BACKEND_PORT", "3000")
+local backend_config = config.get_backend_config()
+local backend_host = backend_config.host
+local backend_port = backend_config.port
 local backend_healthy = true -- Could implement actual backend health check
 
 -- Overall health status

@@ -2,17 +2,11 @@
 local redis = require "resty.redis"
 local cjson = require "cjson"
 local utils = require "modules.utils"
+local config_module = require "modules.config"
 local _M = {}
 
 -- Cache configuration
-local config = {
-    host = utils.get_env("REDIS_HOST", "127.0.0.1"),
-    port = tonumber(utils.get_env("REDIS_PORT", "6379")),
-    timeout = 1000, -- 1 second
-    pool_size = 100,
-    backlog = 100,
-    default_ttl = 300 -- 5 minutes
-}
+local config = config_module.get_redis_config()
 
 -- Connect to Redis
 function _M.connect()
@@ -21,7 +15,7 @@ function _M.connect()
     
     local ok, err = red:connect(config.host, config.port)
     if not ok then
-        utils.log("error", "Failed to connect to Redis: " .. (err or "unknown error"))
+        utils.error("Failed to connect to Redis: " .. (err or "unknown error"))
         return nil, err
     end
     
@@ -36,7 +30,7 @@ function _M.close(red)
     
     local ok, err = red:set_keepalive(10000, config.pool_size)
     if not ok then
-        utils.log("warn", "Failed to set Redis keepalive: " .. (err or "unknown error"))
+        utils.warn("Failed to set Redis keepalive: " .. (err or "unknown error"))
         red:close()
     end
 end
@@ -52,17 +46,17 @@ function _M.get(key)
     _M.close(red)
     
     if not cached_data or cached_data == ngx.null then
-        utils.log("debug", "Cache miss for key: " .. key)
+        utils.debug("Cache miss for key: " .. key)
         return nil, "miss"
     end
     
     local success, data = pcall(cjson.decode, cached_data)
     if not success then
-        utils.log("error", "Failed to decode cached data for key: " .. key)
+        utils.error("Failed to decode cached data for key: " .. key)
         return nil, "decode_error"
     end
     
-    utils.log("debug", "Cache hit for key: " .. key)
+    utils.debug("Cache hit for key: " .. key)
     return data, "hit"
 end
 
@@ -72,13 +66,13 @@ function _M.set(key, response_data, ttl)
     
     local red, err = _M.connect()
     if not red then
-        utils.log("error", "Cannot cache response, Redis unavailable: " .. (err or "unknown"))
+        utils.error("Cannot cache response, Redis unavailable: " .. (err or "unknown"))
         return false
     end
     
     local success, encoded_data = pcall(cjson.encode, response_data)
     if not success then
-        utils.log("error", "Failed to encode response data for caching")
+        utils.error("Failed to encode response data for caching")
         _M.close(red)
         return false
     end
@@ -87,11 +81,11 @@ function _M.set(key, response_data, ttl)
     _M.close(red)
     
     if not ok then
-        utils.log("error", "Failed to store in Redis: " .. (err or "unknown error"))
+        utils.error("Failed to store in Redis: " .. (err or "unknown error"))
         return false
     end
     
-    utils.log("debug", "Cached response for key: " .. key .. " (TTL: " .. ttl .. "s)")
+    utils.debug("Cached response for key: " .. key .. " (TTL: " .. ttl .. "s)")
     return true
 end
 
@@ -106,10 +100,10 @@ function _M.delete(key)
     _M.close(red)
     
     if ok then
-        utils.log("debug", "Deleted cache entry: " .. key)
+        utils.debug("Deleted cache entry: " .. key)
         return true
     else
-        utils.log("error", "Failed to delete cache entry: " .. (err or "unknown error"))
+        utils.error("Failed to delete cache entry: " .. (err or "unknown error"))
         return false
     end
 end

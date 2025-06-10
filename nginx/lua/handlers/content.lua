@@ -4,10 +4,12 @@ local http = require "resty.http"
 local cache = require "modules.cache"
 local metrics = require "modules.metrics"
 local utils = require "modules.utils"
+local config = require "modules.config"
 
 -- Get configuration
-local backend_host = utils.get_env("BACKEND_HOST", "localhost")
-local backend_port = utils.get_env("BACKEND_PORT", "3000")
+local backend_config = config.get_backend_config()
+local backend_host = backend_config.host
+local backend_port = backend_config.port
 local backend_url = "http://" .. backend_host .. ";" .. backend_port
 
 -- First, detect the route pattern

@@ -8,11 +8,9 @@ RUN apt-get update && apt-get install -y \
 # Copy configuration and Lua files
 COPY nginx/conf/default.conf /etc/nginx/conf.d/default.conf
 COPY nginx/lua/ /usr/local/openresty/nginx/lua/
-COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
-# Set proper permissions
-RUN chmod +x /docker-entrypoint.sh && \
-    mkdir -p /usr/local/openresty/nginx/logs
+# Create required directories
+RUN mkdir -p /usr/local/openresty/nginx/logs
 
 # Default environment variables
 ENV REDIS_HOST=redis \
@@ -27,4 +25,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost/health || exit 1
 
 EXPOSE 80 9090
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]

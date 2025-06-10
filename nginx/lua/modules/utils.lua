@@ -1,24 +1,60 @@
 -- Utility functions
+local config = require "modules.config"
 local _M = {}
 
--- Log function with level support
-function _M.log(level, message)
-    local log_level = os.getenv("LOG_LEVEL") or "info"
-    local levels = {
-        debug = 1,
-        info = 2,
-        warn = 3,
-        error = 4
-    }
-    
-    if levels[level] and levels[log_level] and levels[level] >= levels[log_level] then
-        ngx.log(ngx[string.upper(level)], "[sembo-cdn] ", message)
+-- Log level configuration
+local LOG_LEVELS = config.get_log_levels()
+
+-- Get current log level
+local function get_current_log_level()
+    return config.get_log_level_value()
+end
+
+-- Individual log functions for each level
+function _M.debug(message)
+    if LOG_LEVELS.debug >= get_current_log_level() then
+        ngx.log(ngx.DEBUG, "[sembo-cdn] ", message)
     end
 end
 
--- Get environment variable with default
+function _M.info(message)
+    if LOG_LEVELS.info >= get_current_log_level() then
+        ngx.log(ngx.INFO, "[sembo-cdn] ", message)
+    end
+end
+
+function _M.warn(message)
+    if LOG_LEVELS.warn >= get_current_log_level() then
+        ngx.log(ngx.WARN, "[sembo-cdn] ", message)
+    end
+end
+
+function _M.error(message)
+    if LOG_LEVELS.error >= get_current_log_level() then
+        ngx.log(ngx.ERR, "[sembo-cdn] ", message)
+    end
+end
+
+-- Legacy support function (deprecated)
+function _M.log(level, message)
+    if level == "debug" then
+        _M.debug(message)
+    elseif level == "info" then
+        _M.info(message)
+    elseif level == "warn" then
+        _M.warn(message)
+    elseif level == "err" or level == "error" then
+        _M.error(message)
+    else
+        ngx.log(ngx.WARN, "[sembo-cdn] Invalid log level: " .. tostring(level))
+    end
+end
+
+-- Get environment variable with default (deprecated, use config module instead)
 function _M.get_env(key, default)
-    return os.getenv(key) or default
+    ngx.log(ngx.WARN, "[sembo-cdn] utils.get_env is deprecated, use config module instead")
+    -- Forward to config module's internal function for backward compatibility
+    return require("modules.config").get_env(key, default)
 end
 
 -- Generate cache key from request

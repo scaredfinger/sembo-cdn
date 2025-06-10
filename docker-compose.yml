@@ -1,6 +1,8 @@
 services:
+  # Main proxy service
   proxy:
-    build: .
+    build:
+      context: .
     ports:
       - "8080:80"
       - "9090:9090"  # metrics endpoint
@@ -9,17 +11,29 @@ services:
       - REDIS_PORT=6379
       - BACKEND_HOST=backend
       - BACKEND_PORT=3000
-      - LOG_LEVEL=info
+      - LOG_LEVEL=debug
+      - ENV=development
+    volumes:
+      - .:/workspace
     depends_on:
       - redis
       - backend
+    develop:
+      watch:
+        - action: rebuild
+          path: ./Dockerfile
 
+  # Redis service (for development/testing only)
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    environment:
+      - REDIS_APPENDONLY=yes
+    volumes:
+      - redis-dev-data:/data
 
-  # Simple backend for testing
+  # Simple backend for testing (development only)
   backend:
     image: httpd:2.4-alpine
     ports:
@@ -28,4 +42,4 @@ services:
       - ./tests/fixtures:/usr/local/apache2/htdocs:ro
 
 volumes:
-  redis-data:
+  redis-dev-data:

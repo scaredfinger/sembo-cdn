@@ -33,25 +33,21 @@ local patterns = {
 -- Get route pattern for a given URI
 function _M.get_pattern(uri)
     if not uri then
-        return "unknown"
+        return "default"
     end
     
     -- Check each pattern
     for _, route in ipairs(patterns) do
         if string.match(uri, route.pattern) then
-            utils.log("debug", "Matched pattern: " .. route.name .. " for URI: " .. uri)
+            utils.debug("Matched pattern: " .. route.name .. " for URI: " .. uri)
             return route.name
         end
     end
-    
+
     -- Return the URI as-is if no pattern matches (truncated for privacy)
-    local truncated = string.sub(uri, 1, 50)
-    if string.len(uri) > 50 then
-        truncated = truncated .. "..."
-    end
-    
-    utils.log("debug", "No pattern matched for URI: " .. uri .. ", using: " .. truncated)
-    return truncated
+        
+    utils.debug("No pattern matched for URI: " .. uri .. ", using: " .. uri)
+    return "default"
 end
 
 -- Add new pattern (for dynamic configuration in future)
@@ -60,7 +56,7 @@ function _M.add_pattern(pattern, name)
         pattern = pattern,
         name = name
     })
-    utils.log("info", "Added new route pattern: " .. name)
+    utils.info("Added new route pattern: " .. name)
 end
 
 -- Get all patterns (for debugging)
