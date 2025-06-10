@@ -9,14 +9,6 @@
 : "${LOG_LEVEL:=info}"
 : "${ENV:=production}"
 
-Create a dynamic upstream configuration file
-echo "
-upstream backend-service {
-    server $BACKEND_HOST:$BACKEND_PORT max_fails=3 fail_timeout=30s;
-    keepalive 32;
-}
-" > /etc/nginx/conf.d/upstream.conf
-
 # Start OpenResty with environment variables available
 REDIS_HOST=$REDIS_HOST \
 REDIS_PORT=$REDIS_PORT \
