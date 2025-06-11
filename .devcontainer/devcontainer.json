@@ -11,6 +11,9 @@
     },
     "ghcr.io/devcontainers/features/git:1": {}
   },
+  "remoteEnv": {
+    "HOST_WORKSPACE": "${localWorkspaceFolder}"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -21,11 +24,14 @@
       ]
     }
   },
-  "forwardPorts": [8080, 6379],
+  "forwardPorts": [
+    8080,
+    6379
+  ],
   "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/dev-setup.sh",
   "mounts": [
     "source=sembo-cdn-redis-data,target=/data,type=volume",
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-		"source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
   ]
 }

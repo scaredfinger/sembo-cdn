@@ -10,7 +10,7 @@ local config = require "modules.config"
 local backend_config = config.get_backend_config()
 local backend_host = backend_config.host
 local backend_port = backend_config.port
-local backend_url = "http://" .. backend_host .. ";" .. backend_port
+local backend_url = "http://" .. backend_host .. ":" .. backend_port
 
 -- First, detect the route pattern
 local uri = ngx.var.uri

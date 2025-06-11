@@ -35,11 +35,9 @@ services:
   # Wiremock backend for flexible API mocking
   wiremock:
     image: wiremock/wiremock:latest
-    ports:
-      - "8090:8080"  # expose wiremock admin API
     volumes:
-      - ./wiremock/mappings:/home/wiremock/mappings
-      - ./wiremock/__files:/home/wiremock/__files
+      - ${HOST_WORKSPACE}/wiremock/mappings:/home/wiremock/mappings
+      - ${HOST_WORKSPACE}/wiremock/files:/home/wiremock/__files
     command: ["--verbose"]
 
   cmd:
