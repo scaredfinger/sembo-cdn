@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPattern": "/search\\?q=.*"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "query": "beach hotels",
+      "results": [
+        {
+          "id": "hotel-1",
+          "name": "Beach Paradise",
+          "rating": 4.5
+        },
+        {
+          "id": "hotel-2",
+          "name": "Ocean View Resort",
+          "rating": 4.2
+        }
+      ],
+      "total": 2
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

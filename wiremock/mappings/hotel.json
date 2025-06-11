@@ -1,0 +1,29 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/hotel/luxury-resort"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "id": "luxury-resort",
+      "name": "Luxury Beach Resort",
+      "description": "A beautiful beachfront resort",
+      "rooms": [
+        {
+          "id": "101",
+          "type": "ocean_view",
+          "price": 299.99
+        },
+        {
+          "id": "102",
+          "type": "garden_view",
+          "price": 199.99
+        }
+      ]
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

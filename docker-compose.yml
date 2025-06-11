@@ -9,16 +9,16 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - BACKEND_HOST=backend
-      - BACKEND_PORT=80
-      - BACKEND_HEALTHCHECK_PATH=/health
+      - BACKEND_HOST=wiremock
+      - BACKEND_PORT=8080
+      - BACKEND_HEALTHCHECK_PATH=/__admin/health
       - LOG_LEVEL=debug
       - ENV=development
     volumes:
       - .:/workspace
     depends_on:
       - redis
-      - backend
+      - wiremock
     develop:
       watch:
         - action: rebuild
@@ -32,11 +32,15 @@ services:
     volumes:
       - redis-dev-data:/data
 
-  # Simple backend for testing (development only)
-  backend:
-    image: httpd:2.4-alpine
+  # Wiremock backend for flexible API mocking
+  wiremock:
+    image: wiremock/wiremock:latest
+    ports:
+      - "8090:8080"  # expose wiremock admin API
     volumes:
-      - ./tests/fixtures:/usr/local/apache2/htdocs:ro
+      - ./wiremock/mappings:/home/wiremock/mappings
+      - ./wiremock/__files:/home/wiremock/__files
+    command: ["--verbose"]
 
   cmd:
     image: alpine
