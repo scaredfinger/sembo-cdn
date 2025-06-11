@@ -48,7 +48,8 @@ local config = {
     -- Backend settings
     backend = {
         host = get_env("BACKEND_HOST", defaults.backend_host),
-        port = tonumber(get_env("BACKEND_PORT", defaults.backend_port))
+        port = tonumber(get_env("BACKEND_PORT", defaults.backend_port)),
+        healthcheck_path = get_env("BACKEND_HEALTHCHECK_PATH", "")
     },
     
     -- Environment

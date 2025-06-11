@@ -3,6 +3,10 @@ FROM openresty/openresty:latest
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    git \
+    && git clone https://github.com/pintsized/lua-resty-http.git \
+    && cp lua-resty-http/lib/resty/http* /usr/local/openresty/lualib/resty/ \
+    && rm -rf lua-resty-http \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy configuration and Lua files
