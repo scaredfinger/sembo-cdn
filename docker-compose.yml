@@ -41,5 +41,11 @@ services:
     volumes:
       - ./tests/fixtures:/usr/local/apache2/htdocs:ro
 
+  cmd:
+    image: alpine
+    tty: true
+    stdin_open: true
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+
 volumes:
   redis-dev-data:
