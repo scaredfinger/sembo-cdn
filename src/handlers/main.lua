@@ -1,6 +1,8 @@
 -- Unified content handler that handles both route pattern detection and proxying
-local router = require "modules.router"
 local http = require "resty.http"
+
+-- Local modules
+local router = require "modules.router"
 local cache = require "modules.cache"
 local metrics = require "modules.metrics"
 local utils = require "modules.utils"

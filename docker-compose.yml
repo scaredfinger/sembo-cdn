@@ -22,7 +22,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./Dockerfile
+          path: ./src
 
   # Redis service (for development/testing only)
   redis:

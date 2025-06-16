@@ -62,6 +62,15 @@ function RedisCacheProvider:clear()
     return self.redis:flushall()
 end
 
+---Checks Redis connection health
+---@return boolean True if Redis is healthy, false otherwise
+function RedisCacheProvider:health()
+    local ok, result = pcall(function()
+        return self.redis:ping()
+    end)
+    return ok and (result == "PONG" or result == true)
+end
+
 ---Disconnects from Redis
 ---@return boolean Success status
 function RedisCacheProvider:disconnect()
