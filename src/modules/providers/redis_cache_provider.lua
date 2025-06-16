@@ -1,5 +1,5 @@
-local CacheProvider = require("modules.providers.cache_provider")
-local json = require("json")
+local CacheProvider = require "modules.providers.cache_provider"
+local cjson = require "cjson"
 
 ---@class RedisCacheProvider : CacheProvider
 ---@field redis table The Redis client instance
@@ -22,7 +22,7 @@ end
 function RedisCacheProvider:get(key)
     local value = self.redis:get(key)
     if value then
-        return json.decode(value)
+        return cjson.decode(value)
     end
     return nil
 end
@@ -33,7 +33,7 @@ end
 ---@param ttl number|nil Optional time-to-live in seconds
 ---@return boolean Success status
 function RedisCacheProvider:set(key, value, ttl)
-    local serialized = json.encode(value)
+    local serialized = cjson.encode(value)
     if ttl then
         return self.redis:setex(key, ttl, serialized)
     else

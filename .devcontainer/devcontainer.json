@@ -29,7 +29,7 @@
     9090,
     5540
   ],
-  "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/dev-setup.sh",
+  "postCreateCommand": "chmod +x scripts/*.sh",
   "mounts": [
     "source=sembo-cdn-redis-data,target=/data,type=volume",
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
