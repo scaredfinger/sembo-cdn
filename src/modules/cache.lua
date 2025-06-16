@@ -1,5 +1,5 @@
-local CacheManager = require("cache_manager")
-local RedisCacheProvider = require("providers.redis_cache_provider")
+local CacheManager = require("modules.cache_manager")
+local RedisCacheProvider = require("modules.providers.redis_cache_provider")
 
 -- Configuration (could be moved to a separate config file)
 local config = {

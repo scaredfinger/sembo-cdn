@@ -46,20 +46,20 @@ sembo-cdn/
 ├── docker-compose.dev.yml
 ├── Dockerfile
 ├── nginx/
-│   ├── conf/
-│   │   ├── nginx.conf
-│   │   ├── http.conf
-│   │   └── server.conf
-│   └── lua/
-│       ├── init.lua
-│       ├── modules/
-│       │   ├── cache.lua
-│       │   ├── metrics.lua
-│       │   ├── router.lua
-│       │   └── utils.lua
-│       └── handlers/
-│           ├── proxy.lua
-│           └── health.lua
+│   └── conf/
+│       ├── nginx.conf
+│       ├── http.conf
+│       └── server.conf
+├── src/
+│   ├── init.lua
+│   ├── modules/
+│   │   ├── cache.lua
+│   │   ├── metrics.lua
+│   │   ├── router.lua
+│   │   └── utils.lua
+│   └── handlers/
+│       ├── proxy.lua
+│       └── health.lua
 ├── tests/
 │   ├── unit/
 │   │   ├── test_cache.lua

@@ -1,4 +1,4 @@
-local CacheProvider = require("providers.cache_provider")
+local CacheProvider = require("modules.providers.cache_provider")
 local json = require("json")
 
 ---@class RedisCacheProvider : CacheProvider
