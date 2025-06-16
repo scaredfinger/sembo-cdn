@@ -32,6 +32,23 @@ services:
     volumes:
       - redis-dev-data:/data
 
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    ports:
+      - 5540:5540
+
+  redisinsight-config:
+    image: alcyondev/redis-insight-config:latest
+    environment:
+      RI_ACCEPT_EULA: true
+      RI_BASE_URL: 'http://redisinsight:5540'
+      RI_CONNECTION_NAME: 'redis'
+      REDIS_HOST: 'redis'
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+      - redisinsight
+
   # Wiremock backend for flexible API mocking
   wiremock:
     image: wiremock/wiremock:latest
