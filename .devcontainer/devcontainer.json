@@ -26,7 +26,8 @@
   },
   "forwardPorts": [
     8080,
-    6379
+    9090,
+    5540
   ],
   "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/dev-setup.sh",
   "mounts": [
