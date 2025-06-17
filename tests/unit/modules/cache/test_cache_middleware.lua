@@ -7,7 +7,7 @@ local assert = require('luassert')
 local spy = require('luassert.spy')
 local stub = require('luassert.stub')
 
-local CacheMiddleware = require('modules.cache_middleware')
+local CacheMiddleware = require('modules.cache.cache_middleware')
 local Response = require('modules.http.response')
 local Request = require('modules.http.request')
 

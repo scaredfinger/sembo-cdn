@@ -3,7 +3,7 @@ local before_each = require('busted').before_each
 local it = require('busted').it
 local assert = require('luassert')
 
-local CacheControlParser = require("modules.http.cache.cache_control_parser")
+local CacheControlParser = require("modules.cache.cache_control_parser")
 
 describe("CacheControlParser", function()
     local parser
