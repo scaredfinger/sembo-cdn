@@ -7,14 +7,9 @@
 ---@field stale_while_revalidate number
 ---@field surrogate_key string[]
 
----@class CacheControlParser
----@field __index CacheControlParser
-CacheControlParser = {}
-CacheControlParser.__index = CacheControlParser
-
 --- @param cache_control_header string
 --- @return ParsedCacheControl
-function CacheControlParser:parse(cache_control_header)
+local function parse_cache_control(cache_control_header)
     if not cache_control_header or cache_control_header == "" then
         return {
             no_cache = false,
@@ -70,4 +65,4 @@ function CacheControlParser:parse(cache_control_header)
     return result
 end
 
-return CacheControlParser
+return parse_cache_control

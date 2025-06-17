@@ -1,14 +1,14 @@
 ---@class CacheMiddleware: Middleware
 ---@field provider CacheProvider
 ---@field cache_key_strategy fun(request: Request): string
----@field cache_control_parser fun(response: Response): ParsedCacheControl
+---@field cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
 ---@field __index CacheMiddleware
 local CacheMiddleware = {}
 CacheMiddleware.__index = CacheMiddleware
 
 --- @param provider CacheProvider
 --- @param cache_key_strategy fun(request: Request): string
---- @param cache_control_parser fun(response: Response): ParsedCacheControl
+--- @param cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
 --- @return CacheMiddleware
 function CacheMiddleware:new(provider, cache_key_strategy, cache_control_parser)
     local instance = setmetatable({}, CacheMiddleware)
@@ -28,7 +28,8 @@ function CacheMiddleware:execute(request, next)
     local next_response = next(request)
 
     if (next_response.headers["Cache-Control"] ~= nil) then
-        local parsed_cache_control = self.cache_control_parser(next_response)
+        local cache_control_header_value = next_response.headers["Cache-Control"]
+        local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
 
         if parsed_cache_control.no_cache or parsed_cache_control.no_store then
             return next_response

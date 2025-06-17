@@ -1,21 +1,22 @@
 local describe = require('busted').describe
 local before_each = require('busted').before_each
 local it = require('busted').it
-local assert = require('luassert')
 
+local assert = require('luassert')
 local spy = require('luassert.spy')
 local stub = require('luassert.stub')
 
-local CacheMiddleware = require('modules.cache.cache_middleware')
 local Response = require('modules.http.response')
 local Request = require('modules.http.request')
-local CacheControlParser = require('modules.cache.cache_control_parser')
+local parse_cache_control = require('modules.cache.cache_control_parser')
+
+local CacheMiddleware = require('modules.cache.cache_middleware')
 
 describe("CachMiddleware", function()
-    local cacheable_request = Request:new("GET", "/test", {}, "Request body", {}, "localhost")
+    local cacheable_request = Request:new("GET", "/cacheable_request_test", {}, "Request body", {}, "localhost")
     local cacheable_response = Response:new(200, "Cacheable response", { ["Cache-Control"] = "public, max-age=3600" })
 
-    local non_cacheable_request = Request:new("GET", "/test", {}, "Request body", {}, "localhost")
+    local non_cacheable_request = Request:new("GET", "/non_cacheable_test", {}, "Request body", {}, "localhost")
     local non_cacheable_response = Response:new(200, "Non-cacheable response", { ["Cache-Control"] = "no-cache" })
 
     local unknonw_request = Request:new("GET", "/unknown", {}, "Unknown request body", {}, "localhost")
@@ -60,7 +61,7 @@ describe("CachMiddleware", function()
             end,
         }
 
-        sut = CacheMiddleware:new(fake_cache, create_key, CacheControlParser.parse)
+        sut = CacheMiddleware:new(fake_cache, create_key, parse_cache_control)
     end)
 
     it("can be instantiated", function()
@@ -105,15 +106,22 @@ describe("CachMiddleware", function()
             end)
 
             describe("when next returns a cacheable response", function()
-                local cacheable_response = Response:new(200, "Cacheable response",
-                    { ["Cache-Control"] = "public, max-age=3600" })
-
                 it("caches the response", function()
                     sut:execute(cacheable_request, next)
 
                     local cache_key = create_key(cacheable_request)
                     assert.is_not_nil(fake_cache.values[cache_key])
                     assert.equal(cacheable_response.body, fake_cache.values[cache_key].body)
+                end)
+            end)
+
+            describe("when next returns a non-cacheable response", function()
+                it("does not cache the response", function()
+                    sut:execute(non_cacheable_request, next)
+
+                    local cache_key = create_key(non_cacheable_request)
+                    assert.is_nil(fake_cache.values)
+                    assert.is_nil(fake_cache.values[cache_key])
                 end)
             end)
 
