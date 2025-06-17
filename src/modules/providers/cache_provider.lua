@@ -19,9 +19,10 @@ end
 ---Sets a value in the cache
 ---@param key string The cache key
 ---@param value any The value to cache
+---@param tts number|nil Optional time-to-stale in seconds
 ---@param ttl number|nil Optional time-to-live in seconds
 ---@return boolean Success status
-function CacheProvider:set(key, value, ttl)
+function CacheProvider:set(key, value, tts, ttl)
     error("set method must be implemented by concrete cache provider")
 end
 

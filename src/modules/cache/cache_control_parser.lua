@@ -15,6 +15,18 @@ CacheControlParser.__index = CacheControlParser
 --- @param cache_control_header string
 --- @return ParsedCacheControl
 function CacheControlParser:parse(cache_control_header)
+    if not cache_control_header or cache_control_header == "" then
+        return {
+            no_cache = false,
+            no_store = false,
+            max_age = 0,
+            private = false,
+            public = false,
+            stale_while_revalidate = 0,
+            surrogate_key = {},
+        }
+    end
+
     ---@type { [string]: string }
     local directives = {}
     for directive in cache_control_header:gmatch("([^,]+)") do

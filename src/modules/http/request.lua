@@ -6,6 +6,7 @@
 --- @field body any The request body (parsed, e.g., JSON), can be nil
 --- @field query table<string, string> Query string parameters
 --- @field host string The value of the Host header
+--- @field timestamp number
 
 local Request = {}
 Request.__index = Request
@@ -17,8 +18,9 @@ Request.__index = Request
 --- @param body? any Optional request body
 --- @param query? table<string, string> Optional query parameters
 --- @param host? string Optional host value
+--- @param timestamp? number Optional timestamp (default is current time)
 --- @return Request
-function Request:new(method, path, headers, body, query, host)
+function Request:new(method, path, headers, body, query, host, timestamp)
   return setmetatable({
     method = method,
     path = path,
@@ -26,6 +28,7 @@ function Request:new(method, path, headers, body, query, host)
     body = body,
     query = query or {},
     host = host or "",
+    timestamp = timestamp or os.time(),
   }, self)
 end
 
