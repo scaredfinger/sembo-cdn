@@ -176,13 +176,16 @@ describe("CachMiddleware", function()
                     end)
 
                     it("defers the cache update", function()
-                        sut:execute(cacheable_request_stale, next)
+                        local next_spy = spy.new(next)
+                        sut:execute(cacheable_request_stale, next_spy)
 
                         deferred()
+
                         local cache_key = create_key(cacheable_request)
                         local cache_value = fake_cache.values[cache_key]
                         assert.equal(cache_value.stale_at, cacheable_request_stale.timestamp + ONE_HOUR)
                         assert.equal(cache_value.expires_at, cacheable_request_stale.timestamp + ONE_DAY)
+                        assert.spy(next_spy).was_called(1)
                     end)
                 end)
 

@@ -21,6 +21,31 @@ function CacheMiddleware:new(provider, cache_key_strategy, cache_control_parser,
     return instance
 end
 
+---@private
+---@param cache_key string
+---@param response Response
+---@param request Request
+function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
+    if (response.headers["Cache-Control"] ~= nil) then
+        local cache_control_header_value = response.headers["Cache-Control"]
+        local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
+
+        if parsed_cache_control.no_cache or parsed_cache_control.no_store then
+            return
+        end
+
+        self.provider:set(cache_key, {
+            body = response.body,
+            headers = response.headers,
+            status = response.status,
+            stale_at = request.timestamp + parsed_cache_control.max_age,
+            expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
+        },
+        parsed_cache_control.max_age,
+        parsed_cache_control.stale_while_revalidate)
+    end
+end
+
 ---@param request Request
 ---@param next fun(request: Request): Response A function to call the next middleware or handler
 function CacheMiddleware:execute(request, next)
@@ -33,33 +58,16 @@ function CacheMiddleware:execute(request, next)
     local cached_response = self.provider:get(cache_key)
 
     if cached_response then
-        if cached_response.stale_at >= request.timestamp then
+        local is_not_stale = cached_response.stale_at >= request.timestamp
+        if is_not_stale then
             return cached_response
         end
-        if cached_response.expires_at >= request.timestamp then
+
+        local is_stale_but_not_expired = cached_response.expires_at >= request.timestamp
+        if is_stale_but_not_expired then
             self.defer(function()
                 local updated_response = next(request)
-
-                if (updated_response.headers["Cache-Control"] ~= nil) then
-                    local cache_control_header_value = updated_response.headers["Cache-Control"]
-                    local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
-
-                    if parsed_cache_control.no_cache or parsed_cache_control.no_store then
-                        return
-                    end
-
-                    self.provider:set(cache_key, {
-                        body = updated_response.body,
-                        headers = updated_response.headers,
-                        status = updated_response.status,
-                        stale_at = request.timestamp + parsed_cache_control.max_age,
-                        expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
-                    },
-                    parsed_cache_control.max_age,
-                    parsed_cache_control.stale_while_revalidate)
-
-                    return
-                end
+                self:_store_response_in_cache(cache_key, updated_response, request)
             end)
             
             return cached_response
@@ -68,26 +76,7 @@ function CacheMiddleware:execute(request, next)
 
     local next_response = next(request)
 
-    if (next_response.headers["Cache-Control"] ~= nil) then
-        local cache_control_header_value = next_response.headers["Cache-Control"]
-        local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
-
-        if parsed_cache_control.no_cache or parsed_cache_control.no_store then
-            return next_response
-        end
-
-        self.provider:set(cache_key, {
-            body = next_response.body,
-            headers = next_response.headers,
-            status = next_response.status,
-            stale_at = request.timestamp + parsed_cache_control.max_age,
-            expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
-        },
-        parsed_cache_control.max_age,
-        parsed_cache_control.stale_while_revalidate)
-
-        return next_response
-    end
+    self:_store_response_in_cache(cache_key, next_response, request)
 
     return next_response
 end
