@@ -155,9 +155,19 @@ describe("CachMiddleware", function()
                     local response = sut:execute(cacheable_request_expired, next_spy)
 
                     assert.spy(next_spy).was_called(2)
+                end)
 
-                    -- local cache_key = create_key(cacheable_request)
-                    -- assert.is_not_nil(fake_cache.values[cache_key])
+                it("stores new cached value if expired", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local response = sut:execute(cacheable_request_expired, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    local cache_value = fake_cache.values[cache_key]
+                    assert.equal(cache_value.expires_at, cacheable_request_expired.timestamp + 86400)
+                    assert.equal(cache_value.stale_at, cacheable_request_expired.timestamp + 3600)
                 end)
             end)
 
