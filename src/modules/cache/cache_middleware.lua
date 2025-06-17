@@ -30,7 +30,12 @@ function CacheMiddleware:execute(request, next)
     local cached_response = self.provider:get(cache_key)
 
     if cached_response then
-        return cached_response
+        if cached_response.stale_at >= request.timestamp then
+            return cached_response
+        end
+        if cached_response.expires_at >= request.timestamp then
+            return cached_response
+        end
     end
 
     local next_response = next(request)
@@ -50,8 +55,8 @@ function CacheMiddleware:execute(request, next)
             stale_at = request.timestamp + parsed_cache_control.max_age,
             expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
         },
-        parsed_cache_control.stale_while_revalidate,
-        parsed_cache_control.max_age)
+        parsed_cache_control.max_age,
+        parsed_cache_control.stale_while_revalidate)
 
         return next_response
     end

@@ -13,13 +13,19 @@ local parse_cache_control = require('modules.cache.cache_control_parser')
 local CacheMiddleware = require('modules.cache.cache_middleware')
 
 describe("CachMiddleware", function()
-    local cacheable_request = Request:new("GET", "/cacheable_request_test", {}, "Request body", {}, "localhost")
-    local cacheable_response = Response:new(200, "Cacheable response", { ["Cache-Control"] = "public, max-age=3600" })
+    local cacheable_request = Request:new("GET", "/cacheable_request_test", {}, "", {}, "localhost")
+    local cacheable_response = Response:new(200, "Cacheable response",
+        { ["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400" })
 
-    local non_cacheable_request = Request:new("GET", "/non_cacheable_test", {}, "Request body", {}, "localhost")
+    local cacheable_request_stale = Request:new("GET", "/cacheable_request_test", {}, "", {},
+        "localhost", os.time() + 4000)
+    local cacheable_request_expired = Request:new("GET", "/cacheable_request_test", {}, "",
+        {}, "localhost", os.time() + 100000)
+
+    local non_cacheable_request = Request:new("GET", "/non_cacheable_test", {}, "", {}, "localhost")
     local non_cacheable_response = Response:new(200, "Non-cacheable response", { ["Cache-Control"] = "no-cache" })
 
-    local unknonw_request = Request:new("GET", "/unknown", {}, "Unknown request body", {}, "localhost")
+    local unknonw_request = Request:new("GET", "/unknown", {}, "", {}, "localhost")
     local unknonw_request_response = Response:new(200, "Not Found", {})
 
     function next(request)
@@ -27,6 +33,10 @@ describe("CachMiddleware", function()
             return cacheable_response
         elseif request == non_cacheable_request then
             return non_cacheable_response
+        elseif request == cacheable_request_stale then
+            return cacheable_response
+        elseif request == cacheable_request_expired then
+            return cacheable_response
         end
 
         return unknonw_request_response
@@ -121,6 +131,33 @@ describe("CachMiddleware", function()
                     sut:execute(cacheable_request, next_spy)
 
                     assert.spy(next_spy).was_called(1)
+                end)
+
+                it("returns cached value if stale", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local response = sut:execute(cacheable_request_stale, next_spy)
+                    
+                    local cache_key = create_key(cacheable_request)
+                    local cache_value = fake_cache.values[cache_key]
+
+                    assert.equal(cache_value, response)
+                    assert.spy(next_spy).was_called(1)
+                end)
+
+                it("does not return cached value if expired", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local response = sut:execute(cacheable_request_expired, next_spy)
+
+                    assert.spy(next_spy).was_called(2)
+
+                    -- local cache_key = create_key(cacheable_request)
+                    -- assert.is_not_nil(fake_cache.values[cache_key])
                 end)
             end)
 
