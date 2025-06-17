@@ -46,6 +46,14 @@ describe("CachMiddleware", function()
         return unknonw_request_response
     end
 
+    --- @type fun()
+    local deferred
+
+    --- @type fun(callback: fun())
+    local defer = function(callback)
+        deferred = callback
+    end
+
     local fake_cache
 
     --- @type fun(request: Request): string
@@ -75,7 +83,7 @@ describe("CachMiddleware", function()
             end,
         }
 
-        sut = CacheMiddleware:new(fake_cache, create_key, parse_cache_control)
+        sut = CacheMiddleware:new(fake_cache, create_key, parse_cache_control, defer)
     end)
 
     it("can be instantiated", function()
@@ -137,19 +145,47 @@ describe("CachMiddleware", function()
                     assert.spy(next_spy).was_called(1)
                 end)
 
-                it("returns cached value if stale", function()
-                    local next_spy = spy.new(next)
+                describe("when stale", function()
+                    before_each(function()
+                        sut:execute(cacheable_request, next)
+                    end)
 
-                    sut:execute(cacheable_request, next_spy)
+                    it("returns cached value", function()
+                        local response = sut:execute(cacheable_request_stale, next)
 
-                    local response = sut:execute(cacheable_request_stale, next_spy)
-                    
-                    local cache_key = create_key(cacheable_request)
-                    local cache_value = fake_cache.values[cache_key]
+                        local cache_key = create_key(cacheable_request)
+                        local cache_value = fake_cache.values[cache_key]
+                        assert.equal(cache_value, response)
+                    end)
 
-                    assert.equal(cache_value, response)
-                    assert.spy(next_spy).was_called(1)
+                    it("does not call next again", function()
+                        local next_spy = spy.new(next)
+
+                        sut:execute(cacheable_request_stale, next_spy)
+
+                        assert.spy(next_spy).was_not_called()
+                    end)
+
+                    it("does not override cached value", function()
+                        sut:execute(cacheable_request_stale, next)
+
+                        local cache_key = create_key(cacheable_request)
+                        local cache_value = fake_cache.values[cache_key]
+                        assert.equal(cache_value.stale_at, cacheable_request.timestamp + ONE_HOUR)
+                        assert.equal(cache_value.expires_at, cacheable_request.timestamp + ONE_DAY)
+                    end)
+
+                    it("defers the cache update", function()
+                        sut:execute(cacheable_request_stale, next)
+
+                        deferred()
+                        local cache_key = create_key(cacheable_request)
+                        local cache_value = fake_cache.values[cache_key]
+                        assert.equal(cache_value.stale_at, cacheable_request_stale.timestamp + ONE_HOUR)
+                        assert.equal(cache_value.expires_at, cacheable_request_stale.timestamp + ONE_DAY)
+                    end)
                 end)
+
 
                 it("does not return cached value if expired", function()
                     local next_spy = spy.new(next)

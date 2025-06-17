@@ -2,6 +2,7 @@
 ---@field provider CacheProvider
 ---@field cache_key_strategy fun(request: Request): string
 ---@field cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
+---@field defer fun(callback: fun()): nil
 ---@field __index CacheMiddleware
 local CacheMiddleware = {}
 CacheMiddleware.__index = CacheMiddleware
@@ -9,12 +10,14 @@ CacheMiddleware.__index = CacheMiddleware
 --- @param provider CacheProvider
 --- @param cache_key_strategy fun(request: Request): string
 --- @param cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
+--- @param defer fun(callback: fun()): nil
 --- @return CacheMiddleware
-function CacheMiddleware:new(provider, cache_key_strategy, cache_control_parser)
+function CacheMiddleware:new(provider, cache_key_strategy, cache_control_parser, defer)
     local instance = setmetatable({}, CacheMiddleware)
     instance.provider = provider
     instance.cache_key_strategy = cache_key_strategy
     instance.cache_control_parser = cache_control_parser
+    instance.defer = defer
     return instance
 end
 
@@ -34,6 +37,31 @@ function CacheMiddleware:execute(request, next)
             return cached_response
         end
         if cached_response.expires_at >= request.timestamp then
+            self.defer(function()
+                local updated_response = next(request)
+
+                if (updated_response.headers["Cache-Control"] ~= nil) then
+                    local cache_control_header_value = updated_response.headers["Cache-Control"]
+                    local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
+
+                    if parsed_cache_control.no_cache or parsed_cache_control.no_store then
+                        return
+                    end
+
+                    self.provider:set(cache_key, {
+                        body = updated_response.body,
+                        headers = updated_response.headers,
+                        status = updated_response.status,
+                        stale_at = request.timestamp + parsed_cache_control.max_age,
+                        expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
+                    },
+                    parsed_cache_control.max_age,
+                    parsed_cache_control.stale_while_revalidate)
+
+                    return
+                end
+            end)
+            
             return cached_response
         end
     end
