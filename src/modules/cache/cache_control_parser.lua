@@ -49,11 +49,9 @@ function CacheControlParser:parse(cache_control_header)
     result.stale_while_revalidate = tonumber(directives.stale_while_revalidate) or 0
     
     if directives.surrogate_key then
-        local index = 0
         for key in directives.surrogate_key:gmatch("[^%s]+")
         do
-            result.surrogate_key[index] = key
-            index = index + 1
+            table.insert(result.surrogate_key, key)
         end
     end
 
