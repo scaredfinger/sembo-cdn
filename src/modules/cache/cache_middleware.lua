@@ -41,6 +41,7 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
             body = response.body,
             headers = response.headers,
             status = response.status,
+            timestamp = request.timestamp,
             stale_at = request.timestamp + parsed_cache_control.max_age,
             expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
         },
@@ -68,6 +69,11 @@ function CacheMiddleware:execute(request, next)
 
         local is_stale_but_not_expired = cached_response.expires_at >= request.timestamp
         if is_stale_but_not_expired then
+            cached_response.headers["X-Cache"] = "STALE"
+            cached_response.headers["X-Cache-Age"] = tostring(request.timestamp - cached_response.timestamp)
+            cached_response.headers["X-Cache-TTL"] = tostring(cached_response.expires_at - request.timestamp)
+            cached_response.headers["X-Cache-TTS"] = "0"
+
             self.defer(function()
                 local updated_response = next(request)
                 self:_store_response_in_cache(cache_key, updated_response, request)
@@ -78,7 +84,7 @@ function CacheMiddleware:execute(request, next)
     end
 
     local next_response = next(request)
-    
+
     next_response.headers["X-Cache"] = "MISS"
     next_response.headers["X-Cache-Age"] = "0"
 

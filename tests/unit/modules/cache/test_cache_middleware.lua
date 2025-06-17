@@ -228,6 +228,46 @@ describe("CachMiddleware", function()
                     assert.equal(cache_value.expires_at, cacheable_request_stale.timestamp + ONE_DAY)
                     assert.spy(next_spy).was_called(1)
                 end)
+
+                it("returns X-Cache: STALE header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("STALE", fake_cache.values[cache_key].headers["X-Cache"])
+                end)
+
+                it("returns X-Cache-Age: 4000 header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("4000", fake_cache.values[cache_key].headers["X-Cache-Age"])
+                end)
+
+                it("returns X-Cache-TTL: ONE_DAY - 4000 header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(tostring(ONE_DAY - 4000), fake_cache.values[cache_key].headers["X-Cache-TTL"])
+                end)
+
+                it("returns X-Cache-TTS: 0 header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("0", fake_cache.values[cache_key].headers["X-Cache-TTS"])
+                end)
             end)
 
 
