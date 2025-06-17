@@ -1,37 +1,63 @@
+---@class ParsedCacheControl
+---@field no_cache boolean
+---@field no_store boolean
+---@field max_age number
+---@field private boolean
+---@field public boolean
+---@field stale_while_revalidate number
+---@field surrogate_key string[]
+
 ---@class CacheControlParser
 ---@field __index CacheControlParser
 CacheControlParser = {}
 CacheControlParser.__index = CacheControlParser
 
---- @param cache_control_header string The Cache-Control header value
---- @return table A table containing parsed directives
+--- @param cache_control_header string
+--- @return ParsedCacheControl
 function CacheControlParser:parse(cache_control_header)
-    local directives = setmetatable({
-        ---@type boolean
-        no_cache = false,
-        ---@type boolean
-        no_store = false,
-        ---@type number
-        max_age = 0,
-        ---@type boolean
-        private = false,
-        ---@type boolean
-        public = false,
-        ---@type number
-        stale_while_revalidate = 0,
-        ---@type string[]
-        surrogate_key = {},
-    }, { __index = function(_, key) return nil end
-    })
+    ---@type { [string]: string }
+    local directives = {}
     for directive in cache_control_header:gmatch("([^,]+)") do
-        local key, value = directive:match("(%w+)=?(.*)")
+        local key, value = directive:match("^%s*([%w-_]+)%s*=?%s*(.*)")
         if key then
-            key = key:lower()
-            value = value and value:match("^%s*(.-)%s*$") or nil
-            directives[key] = value or true
+            local lowered_key = key:lower()
+            local normalized_key = lowered_key:gsub("[-_]", "_")
+            
+            local sanitized_value = value and value:match("^%s*(.-)%s*$") or nil
+
+            directives[normalized_key] = sanitized_value
         end
     end
-    return directives
+
+    ---@type ParsedCacheControl
+    local result = {
+        no_cache = false,
+        no_store = false,
+        max_age = 0,
+        private = false,
+        public = false,
+        stale_while_revalidate = 0,
+        surrogate_key = {},
+    }
+
+    result.no_cache = (directives.no_cache and true) or false
+    result.no_store = (directives.no_store and true) or false
+    result.private = (directives.private and true) or false
+    result.public = (directives.public and true) or false
+    
+    result.max_age = tonumber(directives.max_age) or 0
+    result.stale_while_revalidate = tonumber(directives.stale_while_revalidate) or 0
+    
+    if directives.surrogate_key then
+        local index = 0
+        for key in directives.surrogate_key:gmatch("[^%s]+")
+        do
+            result.surrogate_key[index] = key
+            index = index + 1
+        end
+    end
+
+    return result
 end
 
 return CacheControlParser
