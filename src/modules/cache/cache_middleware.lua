@@ -25,6 +25,14 @@ function CacheMiddleware:execute(request, next)
         return next(request)
     end
 
+    local cache_key = self.cache_key_strategy(request)
+
+    local cached_response = self.provider:get(cache_key)
+
+    if cached_response then
+        return cached_response
+    end
+
     local next_response = next(request)
 
     if (next_response.headers["Cache-Control"] ~= nil) then
@@ -34,8 +42,6 @@ function CacheMiddleware:execute(request, next)
         if parsed_cache_control.no_cache or parsed_cache_control.no_store then
             return next_response
         end
-
-        local cache_key = self.cache_key_strategy(request)
 
         self.provider:set(cache_key, {
             body = next_response.body,

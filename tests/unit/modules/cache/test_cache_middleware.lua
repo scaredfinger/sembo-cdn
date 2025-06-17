@@ -46,7 +46,7 @@ describe("CachMiddleware", function()
         fake_cache = {
             values = {},
             get = function(self, key)
-                return self.dic[key] or nil
+                return self.values[key] or nil
             end,
             set = function(self, key, value, tts, ttl)
                 self.values[key] = value
@@ -113,6 +113,15 @@ describe("CachMiddleware", function()
                     assert.is_not_nil(fake_cache.values[cache_key])
                     assert.equal(cacheable_response.body, fake_cache.values[cache_key].body)
                 end)
+
+                it("does not call next again for the same request", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+                    sut:execute(cacheable_request, next_spy)
+
+                    assert.spy(next_spy).was_called(1)
+                end)
             end)
 
             describe("when next returns a non-cacheable response", function()
@@ -120,7 +129,6 @@ describe("CachMiddleware", function()
                     sut:execute(non_cacheable_request, next)
 
                     local cache_key = create_key(non_cacheable_request)
-                    assert.is_nil(fake_cache.values)
                     assert.is_nil(fake_cache.values[cache_key])
                 end)
             end)
