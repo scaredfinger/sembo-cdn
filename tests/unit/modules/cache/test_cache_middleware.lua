@@ -186,6 +186,70 @@ describe("CachMiddleware", function()
                 assert.spy(next_spy).was_called(1)
             end)
 
+            describe("when cached", function() 
+
+                before_each(function()
+                    sut:execute(cacheable_request, next)
+                end)
+
+                it("returns cached value", function()
+                    local response = sut:execute(cacheable_request, next)
+
+                    local cache_key = create_key(cacheable_request)
+                    local cache_value = fake_cache.values[cache_key]
+                    assert.equal(cache_value, response)
+                end)
+
+                it("does not call next again", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    assert.spy(next_spy).was_not_called()
+                end)
+
+                it("returns X-Cache: HIT header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("HIT", fake_cache.values[cache_key].headers["X-Cache"])
+                end)
+
+                it("returns X-Cache-Age: 0 header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("0", fake_cache.values[cache_key].headers["X-Cache-Age"])
+                end)
+
+                it("returns X-Cache-TTL: ONE_DAY header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(tostring(ONE_DAY), fake_cache.values[cache_key].headers["X-Cache-TTL"])
+                end)
+
+                it("returns X-Cache-TTS: ONE_HOUR header", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(tostring(ONE_HOUR), fake_cache.values[cache_key].headers["X-Cache-TTS"])
+                end)
+
+            end)
+
             describe("when stale", function()
                 before_each(function()
                     sut:execute(cacheable_request, next)
@@ -303,15 +367,5 @@ describe("CachMiddleware", function()
                 assert.is_nil(fake_cache.values[cache_key])
             end)
         end)
-
-        -- it("caches the response", function()
-        --     local next_spy = spy.new(next)
-
-        --     sut:execute(expected_request, next_spy)
-
-        --     local cache_key = create_key(expected_request)
-        --     assert.is_not_nil(fake_cache.values[cache_key])
-        --     assert.equal(next_response.body, fake_cache.values[cache_key].body)
-        -- end)
     end)
 end)

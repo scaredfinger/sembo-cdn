@@ -64,6 +64,11 @@ function CacheMiddleware:execute(request, next)
     if cached_response then
         local is_not_stale = cached_response.stale_at >= request.timestamp
         if is_not_stale then
+            cached_response.headers["X-Cache"] = "HIT"
+            cached_response.headers["X-Cache-Age"] = tostring(request.timestamp - cached_response.timestamp)
+            cached_response.headers["X-Cache-TTL"] = tostring(cached_response.expires_at - request.timestamp)
+            cached_response.headers["X-Cache-TTS"] = tostring(cached_response.stale_at - request.timestamp)
+
             return cached_response
         end
 
