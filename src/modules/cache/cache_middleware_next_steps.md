@@ -2,38 +2,6 @@
 
 This document outlines the key areas for improving the cache middleware implementation, prioritized by implementation order.
 
-## 4. Metrics/Observability
-
-### Current State
-- No metrics or observability currently implemented
-- Cache hit/miss rates are not tracked
-- Performance impact is not measured
-
-### Proposed Improvements
-- **Cache Hit/Miss Metrics**: Track cache hit ratio, miss count, and hit count
-- **Performance Metrics**: Measure cache lookup time, background revalidation time
-- **Cache Health Metrics**: Monitor cache size, eviction rates, error rates
-- **Request Metrics**: Track requests served from cache vs. origin
-
-### Implementation Approach
-```lua
--- Add metrics collection to cache operations
-local metrics = {
-    hits = 0,
-    misses = 0,
-    stale_hits = 0,
-    background_updates = 0,
-    errors = 0
-}
-```
-
-### Benefits
-- Enables performance monitoring and optimization
-- Helps identify cache effectiveness
-- Assists with capacity planning and troubleshooting
-
----
-
 ## 3. Cache Invalidation
 
 ### Current State
