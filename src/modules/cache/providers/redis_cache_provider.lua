@@ -1,4 +1,4 @@
-local CacheProvider = require "modules.providers.cache_provider"
+local CacheProvider = require "modules.cache.providers.cache_provider"
 local cjson = require "cjson"
 
 ---@class RedisCacheProvider : CacheProvider
@@ -42,14 +42,14 @@ end
 ---@param key string
 ---@param tag string 
 ---@return boolean
-function CacheProvider:add_key_to_tag(key, tag)
+function RedisCacheProvider:add_key_to_tag(key, tag)
     return self.redis:sadd(tag, key)
 end
 
 ---@param key string
 ---@param tag string
 ---@return boolean
-function CacheProvider:remove_key_from_tag(tag, key)
+function RedisCacheProvider:remove_key_from_tag(tag, key)
     return self.redis:srem(tag, key)
 end
 
@@ -61,7 +61,7 @@ end
 
 ---@param tag string 
 ---@return boolean 
-function CacheProvider:del_by_tag(tag)
+function RedisCacheProvider:del_by_tag(tag)
     local keys = self.redis:smembers(tag)
     if keys and #keys > 0 then
         self.redis:del(keys)
