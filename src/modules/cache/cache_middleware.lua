@@ -34,6 +34,9 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
             return
         end
 
+        response.headers["X-Cache-TTL"] = tostring(parsed_cache_control.stale_while_revalidate)
+        response.headers["X-Cache-TTS"] = tostring(parsed_cache_control.max_age)
+
         self.provider:set(cache_key, {
             body = response.body,
             headers = response.headers,
@@ -75,6 +78,9 @@ function CacheMiddleware:execute(request, next)
     end
 
     local next_response = next(request)
+    
+    next_response.headers["X-Cache"] = "MISS"
+    next_response.headers["X-Cache-Age"] = "0"
 
     self:_store_response_in_cache(cache_key, next_response, request)
 
