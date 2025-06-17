@@ -12,10 +12,14 @@ local parse_cache_control = require('modules.cache.cache_control_parser')
 
 local CacheMiddleware = require('modules.cache.cache_middleware')
 
+-- Time constants
+local ONE_HOUR = 3600
+local ONE_DAY = 86400
+
 describe("CachMiddleware", function()
     local cacheable_request = Request:new("GET", "/cacheable_request_test", {}, "", {}, "localhost")
     local cacheable_response = Response:new(200, "Cacheable response",
-        { ["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400" })
+        { ["Cache-Control"] = "public, max-age=" .. ONE_HOUR .. ", stale-while-revalidate=" .. ONE_DAY })
 
     local cacheable_request_stale = Request:new("GET", "/cacheable_request_test", {}, "", {},
         "localhost", os.time() + 4000)
@@ -166,8 +170,8 @@ describe("CachMiddleware", function()
 
                     local cache_key = create_key(cacheable_request)
                     local cache_value = fake_cache.values[cache_key]
-                    assert.equal(cache_value.expires_at, cacheable_request_expired.timestamp + 86400)
-                    assert.equal(cache_value.stale_at, cacheable_request_expired.timestamp + 3600)
+                    assert.equal(cache_value.expires_at, cacheable_request_expired.timestamp + ONE_DAY)
+                    assert.equal(cache_value.stale_at, cacheable_request_expired.timestamp + ONE_HOUR)
                 end)
             end)
 
