@@ -15,7 +15,6 @@ _G.ngx = {
   }
 }
 
-
 local redis = require('resty.redis')
 local RedisCacheProvider = require('modules.cache.providers.redis_cache_provider')
 
