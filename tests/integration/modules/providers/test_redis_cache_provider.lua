@@ -5,6 +5,8 @@ local it = require('busted').it
 
 local assert = require('luassert')
 
+local redis = require('modules.resty_compat_redis')
+
 _G.ngx = {
   log = function(...) end,
   ERR = "ERR",
@@ -15,14 +17,11 @@ _G.ngx = {
   }
 }
 
-local redis = require('resty.redis')
 local RedisCacheProvider = require('modules.cache.providers.redis_cache_provider')
 
 -- Connection constants
 local REDIS_HOST = "host.docker.internal" -- Use host.docker.internal for Docker on Mac/Windows
 local REDIS_PORT = 6379
-local REDIS_DB = 0
-local REDIS_TIMEOUT = 1000
 
 describe("RedisCacheProvider Integration", function()
     local redis_client
@@ -30,17 +29,13 @@ describe("RedisCacheProvider Integration", function()
 
     before_each(function()
         redis_client = redis:new()
-        redis_client:set_timeout(REDIS_TIMEOUT)
         assert(redis_client:connect(REDIS_HOST, REDIS_PORT))
-        assert(redis_client:select(REDIS_DB))
         cache_provider = RedisCacheProvider:new(redis_client)
-        redis_client:flushdb()
     end)
 
     after_each(function()
         if redis_client then
-            redis_client:flushdb()
-            redis_client:close()
+            -- redis_client:close()
         end
     end)
 

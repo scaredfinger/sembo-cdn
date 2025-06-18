@@ -31,7 +31,8 @@ RUN luarocks install lua-resty-redis \
     && luarocks install lua-resty-http \
     && luarocks install lua-cjson \
     && luarocks install busted \
-    && luarocks install luacheck
+    && luarocks install luacheck \
+    && luarocks install redis
 
 # Set working directory
 WORKDIR /workspace
