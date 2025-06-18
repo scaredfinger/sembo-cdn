@@ -84,6 +84,11 @@ function _M.get_backend_config()
     return config.backend
 end
 
+function _M.get_backend_url()
+    local backend = config.backend
+    return "http://" .. backend.host .. ":" .. backend.port
+end
+
 -- Get environment
 function _M.get_env()
     return config.env
