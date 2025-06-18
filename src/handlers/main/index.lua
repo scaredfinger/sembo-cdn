@@ -1,9 +1,9 @@
 local Request = require "modules.http.request"
-local Response = require "modules.http.response"
 
 local upstream = require "handlers.main.upstream"
 local cache = require "handlers.main.cache"
 
+--- @return string, table, string, string, number
 local function extract_request_metadata()
     local http_method = ngx.var.request_method
     local request_headers = ngx.req.get_headers()
@@ -14,10 +14,14 @@ local function extract_request_metadata()
     return http_method, request_headers, request_uri, request_host, current_timestamp
 end
 
+--- @param method string
+--- @return boolean
 local function should_read_request_body(method)
     return method ~= "GET" and method ~= "HEAD"
 end
 
+--- @param method string
+--- @return string|nil
 local function get_request_body_if_needed(method)
     if not should_read_request_body(method) then
         return nil
@@ -27,15 +31,22 @@ local function get_request_body_if_needed(method)
     return ngx.req.get_body_data()
 end
 
+--- @return function
 local function create_upstream_function()
     return function (req)
         return upstream:execute(req)
     end
 end
 
+--- @param response Response
+--- @return nil
 local function send_response_to_client(response)
     ngx.status = response.status or 200
-    ngx.header = response.headers or {}
+
+    for key, value in pairs(response.headers) do
+        ngx.header[key] = value
+    end
+
     ngx.print(response.body)
 end
 
