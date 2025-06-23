@@ -1,14 +1,52 @@
--- Health check handler
-local cache = require "modules.cache"
 local cjson = require "cjson"
 local config = require "modules.config"
 local http = require "resty.http"
+local redis = require("resty.redis")
 
 -- Set content type
 ngx.header["Content-Type"] = "application/json"
 
 -- Check Redis health
-local redis_healthy, redis_status = cache.health_check()
+local redis_client = redis:new()
+local redis_config = config.get_redis_config()
+redis_client:set_timeout(redis_config.timeout)
+local connection_established, connection_error = redis_client:connect(redis_config.host, redis_config.port)
+
+-- Perform Redis health check
+local redis_healthy = false
+local redis_status = "Unknown"
+local redis_stats = {}
+
+if connection_established then
+    local ping_result, ping_error = redis_client:ping()
+    if ping_result == "PONG" then
+        redis_healthy = true
+        redis_status = "Connected and responsive"
+        
+        -- Get Redis statistics
+        local info_result, info_error = redis_client:info("memory")
+        if info_result then
+            -- Parse memory info
+            local used_memory = info_result:match("used_memory:(%d+)")
+            local used_memory_human = info_result:match("used_memory_human:([%w%.]+)")
+            local maxmemory = info_result:match("maxmemory:(%d+)")
+            
+            redis_stats = {
+                used_memory_bytes = tonumber(used_memory) or 0,
+                used_memory_human = used_memory_human or "unknown",
+                max_memory_bytes = tonumber(maxmemory) or 0,
+                connected = true
+            }
+        end
+    else
+        redis_status = "Connected but not responsive: " .. (ping_error or "ping failed")
+        redis_stats = { connected = false, error = ping_error or "ping failed" }
+    end
+    redis_client:close()
+else
+    redis_status = "Connection failed: " .. (connection_error or "unknown error")
+    redis_stats = { connected = false, error = connection_error or "unknown error" }
+end
 
 -- Check backend health
 local backend_config = config.get_backend_config()
@@ -53,23 +91,27 @@ local health_data = {
     services = {
         redis = {
             status = redis_healthy and "healthy" or "unhealthy",
-            message = redis_status
+            message = redis_status,
+            endpoint = redis_config.host .. ":" .. redis_config.port,
+            timeout_ms = redis_config.timeout,
+            stats = redis_stats
         },
         backend = {
             status = backend_healthy and "healthy" or "unhealthy",
             endpoint = backend_host .. ":" .. backend_port,
-            message = backend_status
+            message = backend_status,
+            health_check = {
+                enabled = backend_config.healthcheck_path and backend_config.healthcheck_path ~= "",
+                path = backend_config.healthcheck_path or "not configured"
+            }
         }
-    },
-    cache_stats = cache.get_stats()
+    }
 }
 
 -- Set appropriate HTTP status
 if overall_healthy then
     ngx.status = 200
+    ngx.say(cjson.encode(health_data))
 else
     ngx.status = 503
 end
-
--- Return JSON response
-ngx.say(cjson.encode(health_data))
