@@ -23,6 +23,8 @@ services:
       watch:
         - action: rebuild
           path: ./src
+        - action: rebuild
+          path: ./nginx
 
   # Redis service (for development/testing only)
   redis:
