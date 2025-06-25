@@ -57,7 +57,7 @@ services:
     volumes:
       - ${HOST_WORKSPACE}/wiremock/mappings:/home/wiremock/mappings
       - ${HOST_WORKSPACE}/wiremock/files:/home/wiremock/__files
-    command: ["--verbose"]
+    command: ["--disable-banner"]
 
   cmd:
     image: alpine
