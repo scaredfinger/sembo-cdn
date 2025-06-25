@@ -5,7 +5,7 @@ local cache_key_strategy_host_path = require "modules.cache.cache_key_strategy_h
 local cache_control_parser = require "modules.cache.cache_control_parser"
 local get_or_create_redis_client = require "handlers.main.redis"
 
-local config = require("modules.config")
+local config = require "modules.config"
 
 local redis_config = config.get_redis_config()
 
