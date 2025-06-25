@@ -1,10 +1,9 @@
-local CacheProvider = require "modules.cache.providers.cache_provider"
 local cjson = require "cjson"
 
 ---@class RedisCacheProvider : CacheProvider
 ---@field redis table
 ---@field __index RedisCacheProvider
-local RedisCacheProvider = setmetatable({}, {__index = CacheProvider})
+local RedisCacheProvider = {}
 RedisCacheProvider.__index = RedisCacheProvider
 
 ---@param redis_client table

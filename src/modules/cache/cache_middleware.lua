@@ -59,6 +59,8 @@ function CacheMiddleware:execute(request, next)
 
     local cache_key = self.cache_key_strategy(request)
 
+    ngx.log(ngx.ERR, "Cache key: ", cache_key)
+
     local cached_response = self.provider:get(cache_key)
 
     if cached_response then
