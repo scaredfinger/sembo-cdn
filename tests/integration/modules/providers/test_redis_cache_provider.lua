@@ -135,7 +135,7 @@ describe("RedisCacheProvider Integration", function()
         test_client:set_timeout(REDIS_TIMEOUT)
         test_client:connect(REDIS_HOST, REDIS_PORT)
         local provider = RedisCacheProvider:new(test_client)
-        assert.is_true(provider:disconnect())
+        assert.is_true(provider:close_connection())
     end)
 
     it("handles complex tagging scenario", function()

@@ -1,5 +1,10 @@
 
-local RedisCacheProvider = require "modules.providers.redis_cache_provider"
+local describe = require('busted').describe
+local before_each = require('busted').before_each
+local it = require('busted').it
+local assert = require('luassert')
+
+local RedisCacheProvider = require "modules.cache.providers.redis_cache_provider"
 
 -- Mock Redis client
 local MockRedisClient = {}
@@ -30,7 +35,7 @@ describe("RedisCacheProvider", function()
     
     before_each(function()
         redis_client = MockRedisClient:new()
-        cache_provider = RedisCacheProvider:new(redis_client)
+        cache_provider = RedisCacheProvider:new(function () return redis_client end, function (connection) return true end)
     end)
     
     it("should create an instance and check health", function()

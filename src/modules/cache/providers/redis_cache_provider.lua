@@ -2,15 +2,18 @@ local cjson = require "cjson"
 
 ---@class RedisCacheProvider : CacheProvider
 ---@field open_connection fun(): table
+---@field close_connection fun(connection: table): boolean
 ---@field __index RedisCacheProvider
 local RedisCacheProvider = {}
 RedisCacheProvider.__index = RedisCacheProvider
 
 ---@param open_connection fun(): table
+---@param close_connection fun(connection: table): boolean
 ---@return RedisCacheProvider
-function RedisCacheProvider:new(open_connection)
+function RedisCacheProvider:new(open_connection, close_connection)
     local instance = setmetatable({}, RedisCacheProvider)
     instance.open_connection = open_connection
+    instance.close_connection = close_connection
 
     return instance
 end
@@ -24,17 +27,16 @@ function RedisCacheProvider:get(key)
     
     local value, err = self.redis:get(key)
     if err then
-        ngx.log(ngx.ERR, "Redis get error: ", err)
-        self:disconnect()
+        self:close_connection()
         return nil
     end
     
     local result = nil
-    if value and value ~= ngx.null then
+    if value then
         result = cjson.decode(value)
     end
     
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -56,7 +58,7 @@ function RedisCacheProvider:set(key, value, tts, ttl)
         result = self.redis:set(key, serialized)
     end
     
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -69,7 +71,7 @@ function RedisCacheProvider:add_key_to_tag(key, tag)
     end
     
     local result = self.redis:sadd(tag, key)
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -82,7 +84,7 @@ function RedisCacheProvider:remove_key_from_tag(tag, key)
     end
     
     local result = self.redis:srem(tag, key)
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -94,7 +96,7 @@ function RedisCacheProvider:del(key)
     end
     
     local result = self.redis:del(key)
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -111,7 +113,7 @@ function RedisCacheProvider:del_by_tag(tag)
     end
 
     local result = self.redis:del(tag)
-    self:disconnect()
+    self:close_connection()
     return result
 end
 
@@ -125,7 +127,7 @@ function RedisCacheProvider:health()
         return self.redis:ping()
     end)
     
-    self:disconnect()
+    self:close_connection()
     return ok and (result == "PONG" or result == true)
 end
 
@@ -137,13 +139,8 @@ function RedisCacheProvider:connect()
 end
 
 ---@return boolean
-function RedisCacheProvider:disconnect()
-    if ngx.get_phase() == "timer" then
-        self.redis:close()
-    else
-        self.redis:set_keepalive(10000, 100)
-    end
-    return true
+function RedisCacheProvider:close_connection()
+    return self.close_connection(self.redis)
 end
 
 return RedisCacheProvider

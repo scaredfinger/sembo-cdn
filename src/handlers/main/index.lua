@@ -101,7 +101,16 @@ local function init_cache()
         return redis_connection
     end
 
-    local redis_provider = RedisCacheProvider:new(open_connection)
+    local function close_connection(connection)
+        if ngx.get_phase() == "timer" then
+            connection:close()
+        else
+            connection:set_keepalive(10000, 100)
+        end
+        return true
+    end
+
+    local redis_provider = RedisCacheProvider:new(open_connection, close_connection)
     local defer_function = create_defer_function()
 
     cache_instance = CacheMiddleware:new(redis_provider, cache_key_strategy_host_path, cache_control_parser,

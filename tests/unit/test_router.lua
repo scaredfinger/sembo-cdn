@@ -1,3 +1,11 @@
+local describe = require('busted').describe
+local before_each = require('busted').before_each
+local it = require('busted').it
+
+local assert = require('luassert')
+local spy = require('luassert.spy')
+local stub = require('luassert.stub')
+
 -- Unit tests for router module
 require "tests.test_helper"  -- Load ngx mocks before requiring modules
 
