@@ -110,7 +110,7 @@ local function init_cache()
         return true
     end
 
-    local redis_provider = RedisCacheProvider:new(open_connection, close_connection)
+    local redis_provider = RedisCacheProvider:new(open_connection, close_connection, ngx.null)
     local defer_function = create_defer_function()
 
     cache_instance = CacheMiddleware:new(redis_provider, cache_key_strategy_host_path, cache_control_parser,
