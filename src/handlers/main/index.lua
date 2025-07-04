@@ -1,7 +1,5 @@
 local Request = require "modules.http.request"
 
-local execute_upstream = require "handlers.main.upstream"
-
 --- @return string, table, string, string, number
 local function extract_request_metadata()
     local http_method = ngx.var.request_method
@@ -30,18 +28,6 @@ local function get_request_body_if_needed(method)
     return ngx.req.get_body_data()
 end
 
---- @param response Response
---- @return nil
-local function send_response_to_client(response)
-    ngx.status = response.status or 200
-
-    for key, value in pairs(response.headers) do
-        ngx.header[key] = value
-    end
-
-    ngx.print(response.body)
-end
-
 local http_method, request_headers, request_uri, request_host, current_timestamp = extract_request_metadata()
 local request_body = get_request_body_if_needed(http_method)
 
@@ -55,6 +41,7 @@ local incoming_request = Request:new(
     current_timestamp
 )
 
+local execute_upstream = require "handlers.main.upstream"
 local cache = require "handlers.main.cache"
 
 local function execute(request)
@@ -62,5 +49,17 @@ local function execute(request)
 end
 
 local cached_or_fresh_response = execute(incoming_request)
+
+--- @param response Response
+--- @return nil
+local function send_response_to_client(response)
+    ngx.status = response.status or 200
+
+    for key, value in pairs(response.headers) do
+        ngx.header[key] = value
+    end
+
+    ngx.print(response.body)
+end
 
 send_response_to_client(cached_or_fresh_response)
