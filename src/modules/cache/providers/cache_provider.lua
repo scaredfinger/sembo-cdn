@@ -49,4 +49,8 @@ function CacheProvider:del_by_tag(tag)
     error("del_by_tag method must be implemented by concrete cache provider")
 end
 
+function CacheProvider:cleanup()
+    error("cleanup method must be implemented by concrete cache provider")
+end
+
 return CacheProvider

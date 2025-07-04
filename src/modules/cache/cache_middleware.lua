@@ -25,7 +25,7 @@ end
 ---@param cache_key string
 ---@param response Response
 ---@param request Request
-function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
+function CacheMiddleware:_store_response_in_cache(cache_key, response, request)    
     if (response.headers["Cache-Control"] ~= nil) then
         local cache_control_header_value = response.headers["Cache-Control"]
         local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
@@ -59,7 +59,7 @@ function CacheMiddleware:execute(request, next)
 
     local cache_key = self.cache_key_strategy(request)
 
-    ngx.log(ngx.ERR, "Cache key: ", cache_key)
+    ngx.log(ngx.DEBUG, "Cache key: ", cache_key)
 
     local cached_response = self.provider:get(cache_key)
 

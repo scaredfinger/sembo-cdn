@@ -69,14 +69,11 @@ local CacheMiddleware = require "modules.cache.cache_middleware"
 
 local cache_key_strategy_host_path = require "modules.cache.cache_key_strategy_host_path"
 local cache_control_parser = require "modules.cache.cache_control_parser"
-local get_or_create_redis_client = require "handlers.main.redis"
 
 local config = require "modules.config"
 
 local redis_config = config.get_redis_config()
 
----@type table
-local redis_client
 local cache_instance
 
 ---@return function
@@ -92,15 +89,19 @@ local function init_cache()
         return cache_instance
     end
 
-    local redis_connection = get_or_create_redis_client(redis_client, redis_config)
-    if not redis_connection then
-        ngx.log(ngx.ERR, "Cannot initialize cache without Redis connection")
-        error("Failed to initialize Redis client")
+    local function open_connection()
+
+        local redis = require("resty.redis")
+        local redis_connection = redis:new()
+        redis_connection:set_timeout(config.timeout)
+        redis_connection:connect(
+            redis_config.host,
+            redis_config.port or 6379
+        )
+        return redis_connection
     end
 
-    redis_client = redis_connection
-
-    local redis_provider = RedisCacheProvider:new(redis_connection)
+    local redis_provider = RedisCacheProvider:new(open_connection)
     local defer_function = create_defer_function()
 
     cache_instance = CacheMiddleware:new(redis_provider, cache_key_strategy_host_path, cache_control_parser,

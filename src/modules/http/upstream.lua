@@ -18,6 +18,8 @@ end
 --- @return Response
 function Upstream:execute(request)
     local httpc = http.new()
+    httpc:set_timeout(1000)
+
     local res, err = httpc:request_uri(self.upstream_url, {
         method = request.method,
         path = request.path,
@@ -26,12 +28,20 @@ function Upstream:execute(request)
         ssl_verify = false,  -- Adjust as necessary for your SSL configuration
     })
 
-    if not res then
+    ngx.log(ngx.DEBUG, "Upstream request to " .. self.upstream_url .. " returned status: " .. (res and res.status or "nil") .. ", error: " .. (err or "nil"))
+
+    if not res or err then
         return {
             status = 500,
             body = "Failed to connect to upstream: " .. (err or "unknown error"),
             headers = { ["Content-Type"] = "text/plain" },
         }
+    end
+
+    if ngx.get_phase() == "timer" then
+        httpc:close()
+    else
+        httpc:set_keepalive()
     end
 
     return {

@@ -1,31 +1,41 @@
 local cjson = require "cjson"
 
 ---@class RedisCacheProvider : CacheProvider
----@field redis table
+---@field open_connection fun(): table
 ---@field __index RedisCacheProvider
 local RedisCacheProvider = {}
 RedisCacheProvider.__index = RedisCacheProvider
 
----@param redis_client table
+---@param open_connection fun(): table
 ---@return RedisCacheProvider
-function RedisCacheProvider:new(redis_client)
+function RedisCacheProvider:new(open_connection)
     local instance = setmetatable({}, RedisCacheProvider)
-    instance.redis = redis_client
+    instance.open_connection = open_connection
+
     return instance
 end
 
 ---@param key string
 ---@return any|nil
 function RedisCacheProvider:get(key)
+    if not self:connect() then
+        return nil
+    end
+    
     local value, err = self.redis:get(key)
     if err then
         ngx.log(ngx.ERR, "Redis get error: ", err)
+        self:disconnect()
         return nil
     end
+    
+    local result = nil
     if value and value ~= ngx.null then
-        return cjson.decode(value)
+        result = cjson.decode(value)
     end
-    return nil
+    
+    self:disconnect()
+    return result
 end
 
 ---@param key string
@@ -34,56 +44,106 @@ end
 ---@param ttl number|nil
 ---@return boolean
 function RedisCacheProvider:set(key, value, tts, ttl)
-    local serialized = cjson.encode(value)
-    if ttl then
-        return self.redis:setex(key, ttl, serialized)
-    else
-        return self.redis:set(key, serialized)
+    if not self:connect() then
+        return false
     end
+    
+    local serialized = cjson.encode(value)
+    local result
+    if ttl then
+        result = self.redis:setex(key, ttl, serialized)
+    else
+        result = self.redis:set(key, serialized)
+    end
+    
+    self:disconnect()
+    return result
 end
 
 ---@param key string
 ---@param tag string 
 ---@return boolean
 function RedisCacheProvider:add_key_to_tag(key, tag)
-    return self.redis:sadd(tag, key)
+    if not self:connect() then
+        return false
+    end
+    
+    local result = self.redis:sadd(tag, key)
+    self:disconnect()
+    return result
 end
 
 ---@param key string
 ---@param tag string
 ---@return boolean
 function RedisCacheProvider:remove_key_from_tag(tag, key)
-    return self.redis:srem(tag, key)
+    if not self:connect() then
+        return false
+    end
+    
+    local result = self.redis:srem(tag, key)
+    self:disconnect()
+    return result
 end
 
 ---@param key string
 ---@return boolean
 function RedisCacheProvider:del(key)
-    return self.redis:del(key)
+    if not self:connect() then
+        return false
+    end
+    
+    local result = self.redis:del(key)
+    self:disconnect()
+    return result
 end
 
 ---@param tag string 
 ---@return boolean 
 function RedisCacheProvider:del_by_tag(tag)
+    if not self:connect() then
+        return false
+    end
+    
     local keys = self.redis:smembers(tag)
     if keys and #keys > 0 then
         self.redis:del(keys)
     end
 
-    return self.redis:del(tag)
+    local result = self.redis:del(tag)
+    self:disconnect()
+    return result
 end
 
 ---@return boolean
 function RedisCacheProvider:health()
+    if not self:connect() then
+        return false
+    end
+    
     local ok, result = pcall(function()
         return self.redis:ping()
     end)
+    
+    self:disconnect()
     return ok and (result == "PONG" or result == true)
 end
 
 ---@return boolean
+function RedisCacheProvider:connect()
+    self.redis = self.open_connection()
+
+    return true
+end
+
+---@return boolean
 function RedisCacheProvider:disconnect()
-    return self.redis:quit()
+    if ngx.get_phase() == "timer" then
+        self.redis:close()
+    else
+        self.redis:set_keepalive(10000, 100)
+    end
+    return true
 end
 
 return RedisCacheProvider
