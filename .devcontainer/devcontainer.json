@@ -20,7 +20,8 @@
         "ms-vscode.vscode-json",
         "redhat.vscode-yaml",
         "ms-azuretools.vscode-docker",
-        "sumneko.lua"
+        "sumneko.lua",
+        "Redis.redis-for-vscode"
       ]
     }
   },
@@ -33,6 +34,6 @@
   "mounts": [
     "source=sembo-cdn-redis-data,target=/data,type=volume",
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached"
   ]
 }
