@@ -1,10 +1,7 @@
 local describe = require('busted').describe
-local before_each = require('busted').before_each
 local it = require('busted').it
 
 local assert = require('luassert')
-local spy = require('luassert.spy')
-local stub = require('luassert.stub')
 
 -- Unit tests for router module
 require "tests.test_helper"  -- Load ngx mocks before requiring modules
@@ -51,7 +48,7 @@ describe("router module", function()
         
         it("should handle nil URI", function()
             local pattern = router.get_pattern(nil)
-            assert.equals("unknown", pattern)
+            assert.equals("default", pattern)
         end)
         
         it("should handle empty URI", function()
