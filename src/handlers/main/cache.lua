@@ -42,11 +42,9 @@ local function init_cache()
     return cache_instance
 end
 
-local cache_proxy = {
-    execute = function(self, request, upstream_fn)
+local function execute(request, upstream_fn)
         local initialized_cache = init_cache()
         return initialized_cache:execute(request, upstream_fn)
     end
-}
 
-return cache_proxy
+return execute

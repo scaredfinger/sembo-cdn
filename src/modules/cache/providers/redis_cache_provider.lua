@@ -17,8 +17,12 @@ end
 ---@param key string
 ---@return any|nil
 function RedisCacheProvider:get(key)
-    local value = self.redis:get(key)
-    if value then
+    local value, err = self.redis:get(key)
+    if err then
+        ngx.log(ngx.ERR, "Redis get error: ", err)
+        return nil
+    end
+    if value and value ~= ngx.null then
         return cjson.decode(value)
     end
     return nil
