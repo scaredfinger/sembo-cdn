@@ -3,7 +3,7 @@
 --- @field status integer HTTP status code (e.g., 200, 404)
 --- @field body any The response body content
 --- @field headers table<string, string> Response headers
-
+--- @field locals table<string, any> Optional local variables for the response
 local Response = {}
 Response.__index = Response
 
@@ -17,6 +17,7 @@ function Response:new(status, body, headers)
     status = status,
     body = body,
     headers = headers or {},
+    locals = {}
   }, self)
 end
 
