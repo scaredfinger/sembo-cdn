@@ -8,7 +8,7 @@ local stub = require('luassert.stub')
 
 local Response = require('modules.http.response')
 local Request = require('modules.http.request')
-local router = require('modules.router')
+local router_utils = require('modules.router.utils')
 
 local RouterMiddleware = require('modules.router.middleware')
 
@@ -62,7 +62,7 @@ describe("RouterMiddleware", function()
         end)
 
         it("calls router.get_pattern_from_routes with correct parameters", function()
-            local router_spy = spy.on(router, "get_pattern_from_routes")
+            local router_spy = spy.on(router_utils, "get_pattern_from_routes")
 
             sut:execute(test_request, next)
 
@@ -73,7 +73,7 @@ describe("RouterMiddleware", function()
         end)
 
         it("adds route to response locals", function()
-            local router_stub = stub(router, "get_pattern_from_routes").returns("test_route")
+            local router_stub = stub(router_utils, "get_pattern_from_routes").returns("test_route")
 
             local response = sut:execute(test_request, next)
 
@@ -85,7 +85,7 @@ describe("RouterMiddleware", function()
         describe("when response already has locals", function()
             it("preserves existing locals", function()
                 test_response.locals = { existing_key = "existing_value" }
-                local router_stub = stub(router, "get_pattern_from_routes").returns("test_route")
+                local router_stub = stub(router_utils, "get_pattern_from_routes").returns("test_route")
                 
                 local response = sut:execute(test_request, next)
 

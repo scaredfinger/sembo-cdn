@@ -1,4 +1,4 @@
-local router = require "modules.router"
+local router = require "modules.router.utils"
 
 ---@class RouterMiddleware: Middleware
 ---@field routes_config table

@@ -2,7 +2,7 @@
 local metrics = require "modules.metrics"
 local utils = require "modules.utils"
 local config = require "modules.config"
-local router = require "modules.router"
+local load_patterns_from_file = require "modules.router.utils".load_patterns_from_file
 local cjson = require "cjson"
 
 -- Initialize metrics storage
@@ -12,7 +12,7 @@ utils.debug('Initializing Sembo CDN...')
 
 -- Load route patterns from file and store in shared dict
 local routes_file = os.getenv("ROUTE_PATTERNS_FILE") or "/usr/local/openresty/nginx/lua/config/route-patterns.json"
-local routes_config = router.load_patterns_from_file(routes_file)
+local routes_config = load_patterns_from_file(routes_file)
 
 if routes_config then
     local routes_dict = ngx.shared.routes
