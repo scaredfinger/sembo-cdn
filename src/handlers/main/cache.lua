@@ -1,8 +1,8 @@
 
 local RedisCacheProvider = require "modules.cache.providers.redis_cache_provider"
-local CacheMiddleware = require "modules.cache.cache_middleware"
+local CacheMiddleware = require "modules.cache.middleware"
 
-local cache_key_strategy_host_path = require "modules.cache.cache_key_strategy_host_path"
+local cache_key_strategy_host_path = require "modules.cache.key_strategy_host_path"
 local cache_control_parser = require "modules.cache.cache_control_parser"
 
 local config = require "modules.config"
