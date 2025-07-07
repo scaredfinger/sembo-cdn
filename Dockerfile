@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 COPY nginx/conf/default.conf /etc/nginx/conf.d/default.conf
 COPY nginx/conf/variables.conf /etc/nginx/conf.d/variables.main
 COPY src/ /usr/local/openresty/nginx/lua/
+COPY config/ /usr/local/openresty/nginx/lua/config/
 
 # Create required directories
 RUN mkdir -p /usr/local/openresty/nginx/logs

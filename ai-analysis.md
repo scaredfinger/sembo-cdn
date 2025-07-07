@@ -85,10 +85,15 @@ sembo-cdn/
 ### Lua Modules
 - **cache.lua**: Redis operations for response caching
 - **metrics.lua**: In-memory metrics collection and Prometheus formatting
-- **router.lua**: Path pattern matching for analytics (`/hotels/[name]` detection)
+- **router.lua**: Path pattern matching for analytics using JSON configuration and shared dictionary
 - **utils.lua**: Shared utilities
-- **proxy.lua**: Main proxy handler
-- **health.lua**: Health check endpoints
+- **config.lua**: Configuration management
+
+### Handlers
+- **handlers/health.lua**: Health check endpoints
+- **handlers/metrics.lua**: Metrics endpoint for Prometheus
+- **handlers/play.lua**: Development/testing handler
+- **handlers/main/index.lua**: Main proxy handler with pattern matching
 
 ### Testing Framework
 - **Framework**: busted (Lua testing framework)
@@ -102,7 +107,8 @@ sembo-cdn/
 
 ## Configuration Strategy
 - **Environment Variables**: Primary configuration method
-- **Pattern Configuration**: File-based route pattern definitions
+- **Route Patterns**: JSON file-based route pattern definitions loaded at startup
+- **Shared Dictionary**: Route patterns stored in nginx shared dictionary for performance
 - **Redis Configuration**: Environment-driven connection settings
 - **Backend Configuration**: Static upstream definitions
 

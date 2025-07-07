@@ -82,16 +82,35 @@ curl http://localhost:9090/metrics
 | `REDIS_PORT` | `6379` | Redis server port |
 | `BACKEND_HOST` | `localhost` | Backend server hostname |
 | `BACKEND_PORT` | `3000` | Backend server port |
+| `ROUTE_PATTERNS_FILE` | `/usr/local/openresty/nginx/lua/config/route-patterns.json` | Path to route patterns configuration file |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
 
 ### Route Patterns
 
-The proxy automatically detects and categorizes URLs for metrics:
+The proxy uses a JSON configuration file to define URL patterns for metrics categorization. Create or edit `/config/route-patterns.json`:
 
-- `/hotels/luxury-resort` → `hotels/[name]`
-- `/hotels/beach-hotel/rooms` → `hotels/[name]/rooms`
+```json
+{
+  "patterns": [
+    {
+      "regex": "^/hotel/([^/]+)$",
+      "name": "hotel/[name]"
+    },
+    {
+      "regex": "^/api/v(\\d+)/",
+      "name": "api/v[version]"
+    }
+  ],
+  "fallback": "unknown"
+}
+```
+
+Patterns are matched in order - first match wins. The proxy automatically detects and categorizes URLs:
+
+- `/hotel/luxury-resort` → `hotel/[name]`
+- `/hotel/beach-hotel/rooms` → `hotel/[name]/rooms` (if configured)
 - `/api/v1/users` → `api/v[version]`
-- `/users/12345` → `users/[id]`
+- `/search?q=test` → `search`
 
 ## Endpoints
 
@@ -137,15 +156,23 @@ busted tests/unit/ --verbose
 
 ### Adding New Route Patterns
 
-Edit `nginx/lua/modules/router.lua`:
+Edit the route patterns configuration file:
 
-```lua
-local patterns = {
+```json
+{
+  "patterns": [
     {
-        pattern = \"^/new-pattern/([^/]+)$\",
-        name = \"new-pattern/[id]\"
+      "regex": "^/new-endpoint/([^/]+)$",
+      "name": "new-endpoint/[id]"
     }
+  ],
+  "fallback": "unknown"
 }
+```
+
+Restart the service to load new patterns:
+```bash
+docker-compose restart proxy
 ```
 
 ## Monitoring
