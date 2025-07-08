@@ -1,4 +1,5 @@
 local http = require "resty.http"
+local Response = require "modules.http.response"
 
 --- @class Upstream: Handler
 --- @field __index Upstream
@@ -25,17 +26,20 @@ function Upstream:execute(request)
         path = request.path,
         headers = request.headers,
         body = request.body,
-        ssl_verify = false,  -- Adjust as necessary for your SSL configuration
+        ssl_verify = false, -- Adjust as necessary for your SSL configuration
     })
 
-    ngx.log(ngx.DEBUG, "Upstream request to " .. self.upstream_url .. " returned status: " .. (res and res.status or "nil") .. ", error: " .. (err or "nil"))
+    ngx.log(ngx.DEBUG,
+        "Upstream request to " ..
+        self.upstream_url .. " returned status: " .. (res and res.status or "nil") .. ", error: " .. (err or "nil"))
 
     if not res or err then
-        return {
-            status = 500,
-            body = "Failed to connect to upstream: " .. (err or "unknown error"),
-            headers = { ["Content-Type"] = "text/plain" },
-        }
+        
+        local status = 500
+        local body = "Failed to connect to upstream: " .. (err or "unknown error")
+        local headers = { ["Content-Type"] = "text/plain" }
+        
+        return Response:new(status, body, headers)
     end
 
     if ngx.get_phase() == "timer" then
@@ -44,12 +48,11 @@ function Upstream:execute(request)
         httpc:set_keepalive()
     end
 
-    return {
-        status = res.status,
-        body = res.body,
-        headers = res.headers,
-    }
+    local status = res.status
+    local body = res.body
+    local headers = res.headers
+    
+    return Response:new(status, body, headers)
 end
 
 return Upstream
-
