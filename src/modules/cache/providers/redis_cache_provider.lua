@@ -66,32 +66,6 @@ function RedisCacheProvider:set(key, value, tts, ttl)
 end
 
 ---@param key string
----@param tag string 
----@return boolean
-function RedisCacheProvider:add_key_to_tag(key, tag)
-    if not self:connect() then
-        return false
-    end
-    
-    local result = self.redis:sadd(tag, key)
-    self:disconnect()
-    return result
-end
-
----@param key string
----@param tag string
----@return boolean
-function RedisCacheProvider:remove_key_from_tag(tag, key)
-    if not self:connect() then
-        return false
-    end
-    
-    local result = self.redis:srem(tag, key)
-    self:disconnect()
-    return result
-end
-
----@param key string
 ---@return boolean
 function RedisCacheProvider:del(key)
     if not self:connect() then
@@ -99,23 +73,6 @@ function RedisCacheProvider:del(key)
     end
     
     local result = self.redis:del(key)
-    self:disconnect()
-    return result
-end
-
----@param tag string 
----@return boolean 
-function RedisCacheProvider:del_by_tag(tag)
-    if not self:connect() then
-        return false
-    end
-    
-    local keys = self.redis:smembers(tag)
-    if keys and #keys > 0 then
-        self.redis:del(keys)
-    end
-
-    local result = self.redis:del(tag)
     self:disconnect()
     return result
 end
@@ -134,13 +91,15 @@ function RedisCacheProvider:health()
     return ok and (result == "PONG" or result == true)
 end
 
+---@private
 ---@return boolean
 function RedisCacheProvider:connect()
     self.redis = self.open_connection()
-
+    
     return true
 end
 
+---@private
 ---@return boolean
 function RedisCacheProvider:disconnect()
     return self.close_connection(self.redis)

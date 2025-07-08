@@ -1,18 +1,18 @@
 local parse_surrogate_key = require('modules.surrogate.surrogate_key_parser')
 
 ---@class SurrogateKeyMiddleware: Middleware
----@field provider CacheProvider
+---@field tags_provider TagsProvider
 ---@field cache_key_strategy fun(request: Request): string
 ---@field __index SurrogateKeyMiddleware
 local SurrogateKeyMiddleware = {}
 SurrogateKeyMiddleware.__index = SurrogateKeyMiddleware
 
---- @param provider CacheProvider
+--- @param tags_provider TagsProvider
 --- @param cache_key_strategy fun(request: Request): string
 --- @return SurrogateKeyMiddleware
-function SurrogateKeyMiddleware:new(provider, cache_key_strategy)
+function SurrogateKeyMiddleware:new(tags_provider, cache_key_strategy)
     local instance = setmetatable({}, SurrogateKeyMiddleware)
-    instance.provider = provider
+    instance.tags_provider = tags_provider
     instance.cache_key_strategy = cache_key_strategy
     return instance
 end
@@ -23,7 +23,7 @@ end
 function SurrogateKeyMiddleware:_assign_tags_to_cache_key(cache_key, tags)
     for _, tag in ipairs(tags) do
         -- Use infinite TTL (nil) as requested
-        self.provider:add_key_to_tag(cache_key, tag)
+        self.tags_provider:add_key_to_tag(cache_key, tag)
     end
 end
 

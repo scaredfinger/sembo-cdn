@@ -24,22 +24,13 @@ describe("SurrogateKeyMiddleware", function()
         return "cache:" .. request.host .. ":" .. request.path
     end
 
-    local fake_cache_provider
+    local fake_tags_provider
     
     --- @type SurrogateKeyMiddleware
     local sut
 
     before_each(function()
-        fake_cache_provider = {
-            get = function(self, key)
-                return nil
-            end,
-            set = function(self, key, value, tts, ttl)
-                return true
-            end,
-            del = function(self, key)
-                return true
-            end,
+        fake_tags_provider = {
             add_key_to_tag = function(self, key, tag)
                 return true
             end,
@@ -51,7 +42,7 @@ describe("SurrogateKeyMiddleware", function()
             end
         }
         
-        sut = SurrogateKeyMiddleware:new(fake_cache_provider, test_cache_key_strategy)
+        sut = SurrogateKeyMiddleware:new(fake_tags_provider, test_cache_key_strategy)
         test_response.locals = {}
         test_response.headers = {}
     end)
@@ -61,8 +52,8 @@ describe("SurrogateKeyMiddleware", function()
         assert.is_true(getmetatable(sut) == SurrogateKeyMiddleware)
     end)
 
-    it("stores cache provider on instantiation", function()
-        assert.equal(fake_cache_provider, sut.provider)
+    it("stores tags provider on instantiation", function()
+        assert.equal(fake_tags_provider, sut.tags_provider)
     end)
 
     it("stores cache key strategy on instantiation", function()
@@ -71,19 +62,19 @@ describe("SurrogateKeyMiddleware", function()
 
     describe("_assign_tags_to_cache_key", function()
         it("calls add_key_to_tag for each tag", function()
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             local cache_key = "cache:localhost:/test/path"
             local tags = {"hotel:luxury-resort", "pricing:2024"}
 
             sut:_assign_tags_to_cache_key(cache_key, tags)
 
             assert.spy(add_key_to_tag_spy).was_called(2)
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, cache_key, "hotel:luxury-resort")
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, cache_key, "pricing:2024")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, cache_key, "hotel:luxury-resort")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, cache_key, "pricing:2024")
         end)
 
         it("handles empty tags list", function()
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             local cache_key = "cache:localhost:/test/path"
             local tags = {}
 
@@ -129,26 +120,26 @@ describe("SurrogateKeyMiddleware", function()
             assert.equal(original_body, response.body)
         end)
 
-        it("does not call cache provider when no Surrogate-Key header", function()
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+        it("does not call tags provider when no Surrogate-Key header", function()
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(test_request, next)
 
             assert.spy(add_key_to_tag_spy).was_not_called()
         end)
 
-        it("does not call cache provider when Surrogate-Key header is empty", function()
+        it("does not call tags provider when Surrogate-Key header is empty", function()
             test_response.headers["Surrogate-Key"] = ""
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(test_request, next)
 
             assert.spy(add_key_to_tag_spy).was_not_called()
         end)
 
-        it("does not call cache provider when Surrogate-Key header contains only whitespace", function()
+        it("does not call tags provider when Surrogate-Key header contains only whitespace", function()
             test_response.headers["Surrogate-Key"] = "   "
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(test_request, next)
 
@@ -157,30 +148,30 @@ describe("SurrogateKeyMiddleware", function()
 
         it("processes single tag in Surrogate-Key header", function()
             test_response.headers["Surrogate-Key"] = "hotel:luxury-resort"
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(test_request, next)
 
             assert.spy(add_key_to_tag_spy).was_called(1)
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, "cache:localhost:/test/path", "hotel:luxury-resort")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, "cache:localhost:/test/path", "hotel:luxury-resort")
         end)
 
         it("processes multiple tags in Surrogate-Key header", function()
             test_response.headers["Surrogate-Key"] = "hotel:luxury-resort pricing:2024 availability:current"
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(test_request, next)
 
             assert.spy(add_key_to_tag_spy).was_called(3)
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, "cache:localhost:/test/path", "hotel:luxury-resort")
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, "cache:localhost:/test/path", "pricing:2024")
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, "cache:localhost:/test/path", "availability:current")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, "cache:localhost:/test/path", "hotel:luxury-resort")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, "cache:localhost:/test/path", "pricing:2024")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, "cache:localhost:/test/path", "availability:current")
         end)
 
         it("uses cache key strategy to generate cache key", function()
             test_response.headers["Surrogate-Key"] = "hotel:luxury-resort"
             local cache_key_strategy_spy = spy.new(test_cache_key_strategy)
-            local middleware = SurrogateKeyMiddleware:new(fake_cache_provider, cache_key_strategy_spy)
+            local middleware = SurrogateKeyMiddleware:new(fake_tags_provider, cache_key_strategy_spy)
             
             middleware:execute(test_request, next)
 
@@ -191,12 +182,12 @@ describe("SurrogateKeyMiddleware", function()
         it("handles different request properties in cache key generation", function()
             local different_request = Request:new("POST", "/hotel/premium", {}, "", {}, "example.com")
             test_response.headers["Surrogate-Key"] = "hotel:premium"
-            local add_key_to_tag_spy = spy.on(fake_cache_provider, "add_key_to_tag")
+            local add_key_to_tag_spy = spy.on(fake_tags_provider, "add_key_to_tag")
             
             sut:execute(different_request, next)
 
             assert.spy(add_key_to_tag_spy).was_called(1)
-            assert.spy(add_key_to_tag_spy).was_called_with(fake_cache_provider, "cache:example.com:/hotel/premium", "hotel:premium")
+            assert.spy(add_key_to_tag_spy).was_called_with(fake_tags_provider, "cache:example.com:/hotel/premium", "hotel:premium")
         end)
 
         it("returns response unchanged after processing tags", function()

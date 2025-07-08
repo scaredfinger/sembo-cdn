@@ -24,33 +24,9 @@ function CacheProvider:set(key, value, tts, ttl)
 end
 
 ---@param key string
----@param tag string 
----@return boolean
-function CacheProvider:add_key_to_tag(key, tag)
-    error("add_to_tags method must be implemented by concrete cache provider")
-end
-
----@param key string
----@param tag string
----@return boolean
-function CacheProvider:remove_key_from_tag(tag, key)
-    error("del_from_tags method must be implemented by concrete cache provider")
-end
-
----@param key string
 ---@return boolean
 function CacheProvider:del(key)
     error("del method must be implemented by concrete cache provider")
-end
-
----@param tag string 
----@return boolean 
-function CacheProvider:del_by_tag(tag)
-    error("del_by_tag method must be implemented by concrete cache provider")
-end
-
-function CacheProvider:cleanup()
-    error("cleanup method must be implemented by concrete cache provider")
 end
 
 return CacheProvider

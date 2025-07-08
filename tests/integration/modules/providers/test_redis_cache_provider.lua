@@ -30,7 +30,18 @@ describe("RedisCacheProvider Integration", function()
     before_each(function()
         redis_client = redis:new()
         assert(redis_client:connect(REDIS_HOST, REDIS_PORT))
-        cache_provider = RedisCacheProvider:new(redis_client)
+        
+        local function open_connection()
+            local client = redis:new()
+            client:connect(REDIS_HOST, REDIS_PORT)
+            return client
+        end
+        
+        local function close_connection(connection)
+            return true -- Connection pooling handled by resty.redis
+        end
+        
+        cache_provider = RedisCacheProvider:new(open_connection, close_connection, nil)
     end)
 
     after_each(function()
@@ -40,9 +51,12 @@ describe("RedisCacheProvider Integration", function()
     end)
 
     it("creates an instance", function()
-        local provider = RedisCacheProvider:new(redis_client)
+        local function open_connection() return redis_client end
+        local function close_connection(connection) return true end
+        local provider = RedisCacheProvider:new(open_connection, close_connection, nil)
         assert.is_not_nil(provider)
-        assert.equals(provider.redis, redis_client)
+        assert.is_function(provider.open_connection)
+        assert.is_function(provider.close_connection)
     end)
 
     it("sets and gets a string", function()
@@ -88,72 +102,16 @@ describe("RedisCacheProvider Integration", function()
         assert.equals(cache_provider:del("nonexistent_key"), 0)
     end)
 
-    it("adds key to tag", function()
-        local key, tag = "test_key", "test_tag"
-        assert.is_true(cache_provider:add_key_to_tag(key, tag))
-        local members = redis_client:smembers(tag)
-        assert.same(members, {key})
-    end)
-
-    it("removes key from tag", function()
-        local key, tag = "test_key", "test_tag"
-        cache_provider:add_key_to_tag(key, tag)
-        assert.is_true(cache_provider:remove_key_from_tag(tag, key))
-        local members = redis_client:smembers(tag)
-        assert.same(members, {})
-    end)
-
-    it("deletes by tag", function()
-        local tag, key1, key2 = "test_tag", "key1", "key2"
-        cache_provider:set(key1, "value1")
-        cache_provider:set(key2, "value2")
-        cache_provider:add_key_to_tag(key1, tag)
-        cache_provider:add_key_to_tag(key2, tag)
-        assert.is_true(cache_provider:del_by_tag(tag))
-        assert.is_nil(cache_provider:get(key1))
-        assert.is_nil(cache_provider:get(key2))
-        local members = redis_client:smembers(tag)
-        assert.same(members, {})
-    end)
-
-    it("deletes by empty tag", function()
-        assert.is_true(cache_provider:del_by_tag("empty_tag"))
-    end)
-
     it("health check returns true when connected", function()
         assert.is_true(cache_provider:health())
     end)
 
     it("health check returns false when disconnected", function()
         local disconnected_client = redis:new()
-        local provider = RedisCacheProvider:new(disconnected_client)
+        local function open_connection() return disconnected_client end
+        local function close_connection(connection) return true end
+        local provider = RedisCacheProvider:new(open_connection, close_connection, nil)
         assert.is_false(provider:health())
-    end)
-
-    it("disconnects successfully", function()
-        local test_client = redis:new()
-        test_client:set_timeout(REDIS_TIMEOUT)
-        test_client:connect(REDIS_HOST, REDIS_PORT)
-        local provider = RedisCacheProvider:new(test_client)
-        assert.is_true(provider:close_connection())
-    end)
-
-    it("handles complex tagging scenario", function()
-        local user_tag, session_tag = "user:123", "session:abc"
-        local key1, key2, key3 = "user:123:profile", "user:123:settings", "session:abc:data"
-        cache_provider:set(key1, {name = "John"})
-        cache_provider:set(key2, {theme = "dark"})
-        cache_provider:set(key3, {token = "xyz"})
-        cache_provider:add_key_to_tag(key1, user_tag)
-        cache_provider:add_key_to_tag(key2, user_tag)
-        cache_provider:add_key_to_tag(key3, session_tag)
-        assert.is_not_nil(cache_provider:get(key1))
-        assert.is_not_nil(cache_provider:get(key2))
-        assert.is_not_nil(cache_provider:get(key3))
-        cache_provider:del_by_tag(user_tag)
-        assert.is_nil(cache_provider:get(key1))
-        assert.is_nil(cache_provider:get(key2))
-        assert.is_not_nil(cache_provider:get(key3))
     end)
 end)
     
