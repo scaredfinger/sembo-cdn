@@ -68,7 +68,8 @@ function CacheMiddleware:execute(request, next)
         local response = Response:new(
             cached.status,
             cached.body,
-            cached.headers
+            cached.headers,
+            cached.locals
         )
 
         local is_not_stale = cached.stale_at >= request.timestamp
