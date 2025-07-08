@@ -27,6 +27,7 @@ end
 ---@param cache_key string
 ---@param response Response
 ---@param request Request
+---@return ParsedCacheControl|nil
 function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
     if (response.headers["Cache-Control"] ~= nil) then
         local cache_control_header_value = response.headers["Cache-Control"]
@@ -36,9 +37,6 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
             return
         end
 
-        response.headers["X-Cache-TTL"] = tostring(parsed_cache_control.stale_while_revalidate)
-        response.headers["X-Cache-TTS"] = tostring(parsed_cache_control.max_age)
-
         self.provider:set(cache_key, {
                 body = response.body,
                 headers = response.headers,
@@ -46,10 +44,12 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
                 locals = response.locals,
                 timestamp = request.timestamp,
                 stale_at = request.timestamp + parsed_cache_control.max_age,
-                expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
+                expired_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
             },
             parsed_cache_control.max_age,
             parsed_cache_control.stale_while_revalidate)
+
+        return parsed_cache_control
     end
 end
 
@@ -73,7 +73,7 @@ function CacheMiddleware:execute(request, next)
 
         local is_not_stale = cached.stale_at >= request.timestamp
         if is_not_stale then
-            local cache_ttl = cached.expires_at - request.timestamp
+            local cache_ttl = cached.expired_at - request.timestamp
             local cache_tts = cached.stale_at - request.timestamp
             local cache_age = request.timestamp - cached.timestamp
 
@@ -90,9 +90,9 @@ function CacheMiddleware:execute(request, next)
             return response
         end
 
-        local is_stale_but_not_expired = cached.expires_at >= request.timestamp
+        local is_stale_but_not_expired = cached.expired_at >= request.timestamp
         if is_stale_but_not_expired then
-            local cache_ttl = cached.expires_at - request.timestamp
+            local cache_ttl = cached.expired_at - request.timestamp
 
             response.headers["X-Cache"] = "STALE"
             response.headers["X-Cache-Age"] = tostring(request.timestamp - cached.timestamp)
@@ -113,11 +113,19 @@ function CacheMiddleware:execute(request, next)
     end
 
     local next_response = next(request)
-    local response_to_cache = next_response:clone()
-    self:_store_response_in_cache(cache_key, response_to_cache, request)
 
+    local response_to_cache = next_response:clone()
+    local parsed_cache_control = self:_store_response_in_cache(cache_key, response_to_cache, request)
+
+    if not parsed_cache_control then
+        return next_response
+    end
+    
     next_response.headers["X-Cache"] = "MISS"
     next_response.headers["X-Cache-Age"] = "0"
+    next_response.headers["X-Cache-TTL"] = tostring(parsed_cache_control.stale_while_revalidate)
+    next_response.headers["X-Cache-TTS"] = tostring(parsed_cache_control.max_age)
+
 
     next_response.locals.cache_state = "miss"
     next_response.locals.cache_ttl = 0
