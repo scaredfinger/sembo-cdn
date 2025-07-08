@@ -2,8 +2,8 @@
 
 local json = require "cjson"
 
----@param file_path string
----@return {  patterns: Pattern[], fallback: string }
+--- @param file_path string
+--- @return {  patterns: Pattern[], fallback: string }
 local function load_patterns_from_file(file_path)
     if not file_path then
         error("No file path provided for route patterns")
@@ -51,9 +51,9 @@ local function load_patterns_from_file(file_path)
     return result
 end
 
----@param routes_config table
----@param uri string
----@return Pattern
+--- @param routes_config table
+--- @param uri string
+--- @return Pattern
 local function get_pattern_from_routes(routes_config, uri)
     if not routes_config or not routes_config.patterns then
         error("Invalid routes configuration: missing 'patterns' array")

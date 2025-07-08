@@ -11,14 +11,14 @@ local redis_config = config.get_redis_config()
 
 local cache_instance
 
----@return function
+--- @return function
 local function create_defer_function()
     return function(fn)
         ngx.timer.at(0, fn)
     end
 end
 
----@return table
+--- @return table
 local function init_cache()
     if cache_instance then
         return cache_instance

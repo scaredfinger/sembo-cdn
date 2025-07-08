@@ -1,9 +1,9 @@
 local parse_surrogate_key = require('modules.surrogate.surrogate_key_parser')
 
----@class SurrogateKeyMiddleware: Middleware
----@field tags_provider TagsProvider
----@field cache_key_strategy fun(request: Request): string
----@field __index SurrogateKeyMiddleware
+--- @class SurrogateKeyMiddleware: Middleware
+--- @field tags_provider TagsProvider
+--- @field cache_key_strategy fun(request: Request): string
+--- @field __index SurrogateKeyMiddleware
 local SurrogateKeyMiddleware = {}
 SurrogateKeyMiddleware.__index = SurrogateKeyMiddleware
 
@@ -27,9 +27,9 @@ function SurrogateKeyMiddleware:_assign_tags_to_cache_key(cache_key, tags)
     end
 end
 
----@param request Request
----@param next fun(request: Request): Response A function to call the next middleware or handler
----@return Response
+--- @param request Request
+--- @param next fun(request: Request): Response A function to call the next middleware or handler
+--- @return Response
 function SurrogateKeyMiddleware:execute(request, next)
     -- Get response from next middleware/handler
     local response = next(request)

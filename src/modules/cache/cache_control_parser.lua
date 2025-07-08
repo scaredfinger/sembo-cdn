@@ -1,11 +1,11 @@
----@class ParsedCacheControl
----@field no_cache boolean
----@field no_store boolean
----@field max_age number
----@field private boolean
----@field public boolean
----@field stale_while_revalidate number
----@field surrogate_key string[]
+--- @class ParsedCacheControl
+--- @field no_cache boolean
+--- @field no_store boolean
+--- @field max_age number
+--- @field private boolean
+--- @field public boolean
+--- @field stale_while_revalidate number
+--- @field surrogate_key string[]
 
 --- @param cache_control_header string
 --- @return ParsedCacheControl
@@ -22,7 +22,7 @@ local function parse_cache_control(cache_control_header)
         }
     end
 
-    ---@type { [string]: string }
+    --- @type { [string]: string }
     local directives = {}
     for directive in cache_control_header:gmatch("([^,]+)") do
         local key, value = directive:match("^%s*([%w-_]+)%s*=?%s*(.*)")
@@ -36,7 +36,7 @@ local function parse_cache_control(cache_control_header)
         end
     end
 
-    ---@type ParsedCacheControl
+    --- @type ParsedCacheControl
     local result = {
         no_cache = false,
         no_store = false,

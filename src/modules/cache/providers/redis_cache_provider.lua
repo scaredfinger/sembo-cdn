@@ -1,17 +1,17 @@
 local cjson = require "cjson"
 
----@class RedisCacheProvider : CacheProvider
----@field open_connection fun(): table
----@field close_connection fun(connection: table): boolean
----@field null_value any
----@field __index RedisCacheProvider
+--- @class RedisCacheProvider : CacheProvider
+--- @field open_connection fun(): table
+--- @field close_connection fun(connection: table): boolean
+--- @field null_value any
+--- @field __index RedisCacheProvider
 local RedisCacheProvider = {}
 RedisCacheProvider.__index = RedisCacheProvider
 
----@param open_connection fun(): table
----@param close_connection fun(connection: table): boolean
----@param null_value any
----@return RedisCacheProvider
+--- @param open_connection fun(): table
+--- @param close_connection fun(connection: table): boolean
+--- @param null_value any
+--- @return RedisCacheProvider
 function RedisCacheProvider:new(open_connection, close_connection, null_value)
     local instance = setmetatable({}, RedisCacheProvider)
     instance.open_connection = open_connection
@@ -21,8 +21,8 @@ function RedisCacheProvider:new(open_connection, close_connection, null_value)
     return instance
 end
 
----@param key string
----@return any|nil
+--- @param key string
+--- @return any|nil
 function RedisCacheProvider:get(key)
     if not self:connect() then
         return nil
@@ -43,11 +43,11 @@ function RedisCacheProvider:get(key)
     return result
 end
 
----@param key string
----@param value any
----@param tts number|nil
----@param ttl number|nil
----@return boolean
+--- @param key string
+--- @param value any
+--- @param tts number|nil
+--- @param ttl number|nil
+--- @return boolean
 function RedisCacheProvider:set(key, value, tts, ttl)
     if not self:connect() then
         return false
@@ -65,8 +65,8 @@ function RedisCacheProvider:set(key, value, tts, ttl)
     return result
 end
 
----@param key string
----@return boolean
+--- @param key string
+--- @return boolean
 function RedisCacheProvider:del(key)
     if not self:connect() then
         return false
@@ -77,7 +77,7 @@ function RedisCacheProvider:del(key)
     return result
 end
 
----@return boolean
+--- @return boolean
 function RedisCacheProvider:health()
     if not self:connect() then
         return false
@@ -91,16 +91,16 @@ function RedisCacheProvider:health()
     return ok and (result == "PONG" or result == true)
 end
 
----@private
----@return boolean
+--- @private
+--- @return boolean
 function RedisCacheProvider:connect()
     self.redis = self.open_connection()
     
     return true
 end
 
----@private
----@return boolean
+--- @private
+--- @return boolean
 function RedisCacheProvider:disconnect()
     return self.close_connection(self.redis)
 end

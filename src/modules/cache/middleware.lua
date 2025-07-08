@@ -1,11 +1,11 @@
 local Response = require "modules.http.response"
 
----@class CacheMiddleware: Middleware
----@field provider CacheProvider
----@field cache_key_strategy fun(request: Request): string
----@field cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
----@field defer fun(callback: fun()): nil
----@field __index CacheMiddleware
+--- @class CacheMiddleware: Middleware
+--- @field provider CacheProvider
+--- @field cache_key_strategy fun(request: Request): string
+--- @field cache_control_parser fun(cache_control_header_value: string): ParsedCacheControl
+--- @field defer fun(callback: fun()): nil
+--- @field __index CacheMiddleware
 local CacheMiddleware = {}
 CacheMiddleware.__index = CacheMiddleware
 
@@ -23,11 +23,11 @@ function CacheMiddleware:new(provider, cache_key_strategy, cache_control_parser,
     return instance
 end
 
----@private
----@param cache_key string
----@param response Response
----@param request Request
----@return ParsedCacheControl|nil
+--- @private
+--- @param cache_key string
+--- @param response Response
+--- @param request Request
+--- @return ParsedCacheControl|nil
 function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
     if (response.headers["Cache-Control"] ~= nil) then
         local cache_control_header_value = response.headers["Cache-Control"]
@@ -53,8 +53,8 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
     end
 end
 
----@param request Request
----@param next fun(request: Request): Response A function to call the next middleware or handler
+--- @param request Request
+--- @param next fun(request: Request): Response A function to call the next middleware or handler
 function CacheMiddleware:execute(request, next)
     if request.method ~= "GET" then
         return next(request)
