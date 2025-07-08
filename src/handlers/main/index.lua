@@ -43,9 +43,12 @@ local incoming_request = Request:new(
 
 local execute_upstream = require "handlers.main.upstream"
 local cache = require "handlers.main.cache"
+local surrogate = require "handlers.main.surrogate"
 
 local function execute(request)
-    return cache:execute(request, execute_upstream)
+    return cache:execute(request, function (inner_request)
+        return surrogate:execute(inner_request, execute_upstream)
+    end)
 end
 
 local cached_or_fresh_response = execute(incoming_request)
