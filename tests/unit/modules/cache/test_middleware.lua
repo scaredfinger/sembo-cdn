@@ -165,6 +165,36 @@ describe("CachMiddleware", function()
                 assert.is_not_nil(fake_cache.values[cache_key])
                 assert.equal(tostring(ONE_HOUR), fake_cache.values[cache_key].headers["X-Cache-TTS"])
             end)
+
+            it("sets cache_state to miss in locals", function()
+                local next_spy = spy.new(next)
+
+                sut:execute(cacheable_request, next_spy)
+
+                local cache_key = create_key(cacheable_request)
+                assert.is_not_nil(fake_cache.values[cache_key])
+                assert.equal("miss", fake_cache.values[cache_key].locals.cache_state)
+            end)
+
+            it("sets cache_ttl to 0 in locals", function()
+                local next_spy = spy.new(next)
+
+                sut:execute(cacheable_request, next_spy)
+
+                local cache_key = create_key(cacheable_request)
+                assert.is_not_nil(fake_cache.values[cache_key])
+                assert.equal(0, fake_cache.values[cache_key].locals.cache_ttl)
+            end)
+
+            it("sets cache_tts to 0 in locals", function()
+                local next_spy = spy.new(next)
+
+                sut:execute(cacheable_request, next_spy)
+
+                local cache_key = create_key(cacheable_request)
+                assert.is_not_nil(fake_cache.values[cache_key])
+                assert.equal(0, fake_cache.values[cache_key].locals.cache_tts)
+            end)
         end)
 
         describe("when next returns a cacheable response", function()
@@ -245,6 +275,36 @@ describe("CachMiddleware", function()
                     local cache_key = create_key(cacheable_request)
                     assert.is_not_nil(fake_cache.values[cache_key])
                     assert.equal(tostring(ONE_HOUR), fake_cache.values[cache_key].headers["X-Cache-TTS"])
+                end)
+
+                it("sets cache_state to hit in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("hit", fake_cache.values[cache_key].locals.cache_state)
+                end)
+
+                it("sets cache_ttl to ONE_DAY in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(ONE_DAY, fake_cache.values[cache_key].locals.cache_ttl)
+                end)
+
+                it("sets cache_tts to ONE_HOUR in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(ONE_HOUR, fake_cache.values[cache_key].locals.cache_tts)
                 end)
 
             end)
@@ -330,6 +390,36 @@ describe("CachMiddleware", function()
                     local cache_key = create_key(cacheable_request)
                     assert.is_not_nil(fake_cache.values[cache_key])
                     assert.equal("0", fake_cache.values[cache_key].headers["X-Cache-TTS"])
+                end)
+
+                it("sets cache_state to stale in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal("stale", fake_cache.values[cache_key].locals.cache_state)
+                end)
+
+                it("sets cache_ttl to ONE_DAY - 4000 in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(ONE_DAY - 4000, fake_cache.values[cache_key].locals.cache_ttl)
+                end)
+
+                it("sets cache_tts to 0 in locals", function()
+                    local next_spy = spy.new(next)
+
+                    sut:execute(cacheable_request_stale, next_spy)
+
+                    local cache_key = create_key(cacheable_request)
+                    assert.is_not_nil(fake_cache.values[cache_key])
+                    assert.equal(0, fake_cache.values[cache_key].locals.cache_tts)
                 end)
             end)
 

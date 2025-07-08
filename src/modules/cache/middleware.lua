@@ -1,3 +1,5 @@
+local Response = require "modules.http.response"
+
 ---@class CacheMiddleware: Middleware
 ---@field provider CacheProvider
 ---@field cache_key_strategy fun(request: Request): string
@@ -25,7 +27,7 @@ end
 ---@param cache_key string
 ---@param response Response
 ---@param request Request
-function CacheMiddleware:_store_response_in_cache(cache_key, response, request)    
+function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
     if (response.headers["Cache-Control"] ~= nil) then
         local cache_control_header_value = response.headers["Cache-Control"]
         local parsed_cache_control = self.cache_control_parser(cache_control_header_value)
@@ -38,15 +40,16 @@ function CacheMiddleware:_store_response_in_cache(cache_key, response, request)
         response.headers["X-Cache-TTS"] = tostring(parsed_cache_control.max_age)
 
         self.provider:set(cache_key, {
-            body = response.body,
-            headers = response.headers,
-            status = response.status,
-            timestamp = request.timestamp,
-            stale_at = request.timestamp + parsed_cache_control.max_age,
-            expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
-        },
-        parsed_cache_control.max_age,
-        parsed_cache_control.stale_while_revalidate)
+                body = response.body,
+                headers = response.headers,
+                status = response.status,
+                locals = response.locals,
+                timestamp = request.timestamp,
+                stale_at = request.timestamp + parsed_cache_control.max_age,
+                expires_at = request.timestamp + parsed_cache_control.stale_while_revalidate,
+            },
+            parsed_cache_control.max_age,
+            parsed_cache_control.stale_while_revalidate)
     end
 end
 
@@ -59,41 +62,66 @@ function CacheMiddleware:execute(request, next)
 
     local cache_key = self.cache_key_strategy(request)
 
-    local cached_response = self.provider:get(cache_key)
+    local cached = self.provider:get(cache_key)
 
-    if cached_response then
-        local is_not_stale = cached_response.stale_at >= request.timestamp
+    if cached then
+        local response = Response:new(
+            cached.status,
+            cached.body,
+            cached.headers
+        )
+
+        local is_not_stale = cached.stale_at >= request.timestamp
         if is_not_stale then
-            cached_response.headers["X-Cache"] = "HIT"
-            cached_response.headers["X-Cache-Age"] = tostring(request.timestamp - cached_response.timestamp)
-            cached_response.headers["X-Cache-TTL"] = tostring(cached_response.expires_at - request.timestamp)
-            cached_response.headers["X-Cache-TTS"] = tostring(cached_response.stale_at - request.timestamp)
+            local cache_ttl = cached.expires_at - request.timestamp
+            local cache_tts = cached.stale_at - request.timestamp
+            local cache_age = request.timestamp - cached.timestamp
 
-            return cached_response
+            response.headers["X-Cache"] = "HIT"
+            response.headers["X-Cache-Age"] = tostring(cache_age)
+            response.headers["X-Cache-TTL"] = tostring(cache_ttl)
+            response.headers["X-Cache-TTS"] = tostring(cache_tts)
+
+            response.locals.cache_state = "hit"
+            response.locals.cache_age = cache_age
+            response.locals.cache_ttl = cache_ttl
+            response.locals.cache_tts = cache_tts
+
+            return response
         end
 
-        local is_stale_but_not_expired = cached_response.expires_at >= request.timestamp
+        local is_stale_but_not_expired = cached.expires_at >= request.timestamp
         if is_stale_but_not_expired then
-            cached_response.headers["X-Cache"] = "STALE"
-            cached_response.headers["X-Cache-Age"] = tostring(request.timestamp - cached_response.timestamp)
-            cached_response.headers["X-Cache-TTL"] = tostring(cached_response.expires_at - request.timestamp)
-            cached_response.headers["X-Cache-TTS"] = "0"
+            local cache_ttl = cached.expires_at - request.timestamp
+
+            response.headers["X-Cache"] = "STALE"
+            response.headers["X-Cache-Age"] = tostring(request.timestamp - cached.timestamp)
+            response.headers["X-Cache-TTL"] = tostring(cache_ttl)
+            response.headers["X-Cache-TTS"] = "0"
+
+            response.locals.cache_state = "stale"
+            response.locals.cache_ttl = cache_ttl
+            response.locals.cache_tts = 0
 
             self.defer(function()
                 local updated_response = next(request)
                 self:_store_response_in_cache(cache_key, updated_response, request)
             end)
-            
-            return cached_response
+
+            return response
         end
     end
 
     local next_response = next(request)
+    local response_to_cache = next_response:clone()
+    self:_store_response_in_cache(cache_key, response_to_cache, request)
 
     next_response.headers["X-Cache"] = "MISS"
     next_response.headers["X-Cache-Age"] = "0"
 
-    self:_store_response_in_cache(cache_key, next_response, request)
+    next_response.locals.cache_state = "miss"
+    next_response.locals.cache_ttl = 0
+    next_response.locals.cache_tts = 0
 
     return next_response
 end
