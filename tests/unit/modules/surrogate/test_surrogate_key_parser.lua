@@ -1,0 +1,120 @@
+local describe = require('busted').describe
+local before_each = require('busted').before_each
+local it = require('busted').it
+local assert = require('luassert')
+
+local parse_surrogate_key = require("modules.surrogate.surrogate_key_parser")
+
+describe("SurrogateKeyParser", function()
+    local surrogate_key_parser
+
+    before_each(function()
+        surrogate_key_parser = parse_surrogate_key
+    end)
+
+    describe("parse", function()
+        it("should parse single surrogate key", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort")
+            assert.are.equal(1, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+        end)
+
+        it("should parse multiple surrogate keys separated by spaces", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort pricing:2024 availability:current")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("pricing:2024", parsed_keys[2])
+            assert.are.equal("availability:current", parsed_keys[3])
+        end)
+
+        it("should handle multiple spaces between keys", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort   pricing:2024    availability:current")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("pricing:2024", parsed_keys[2])
+            assert.are.equal("availability:current", parsed_keys[3])
+        end)
+
+        it("should handle tabs between keys", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort\tpricing:2024\tavailability:current")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("pricing:2024", parsed_keys[2])
+            assert.are.equal("availability:current", parsed_keys[3])
+        end)
+
+        it("should handle mixed whitespace", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort \t pricing:2024\t\t availability:current")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("pricing:2024", parsed_keys[2])
+            assert.are.equal("availability:current", parsed_keys[3])
+        end)
+
+        it("should handle leading and trailing whitespace", function()
+            local parsed_keys = surrogate_key_parser("  hotel:luxury-resort pricing:2024  ")
+            assert.are.equal(2, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("pricing:2024", parsed_keys[2])
+        end)
+
+        it("should return empty array for empty header", function()
+            local parsed_keys = surrogate_key_parser("")
+            assert.are.equal(0, #parsed_keys)
+        end)
+
+        it("should return empty array for nil header", function()
+            local parsed_keys = surrogate_key_parser(nil)
+            assert.are.equal(0, #parsed_keys)
+        end)
+
+        it("should return empty array for whitespace-only header", function()
+            local parsed_keys = surrogate_key_parser("   \t  \n  ")
+            assert.are.equal(0, #parsed_keys)
+        end)
+
+        it("should handle single character keys", function()
+            local parsed_keys = surrogate_key_parser("a b c")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("a", parsed_keys[1])
+            assert.are.equal("b", parsed_keys[2])
+            assert.are.equal("c", parsed_keys[3])
+        end)
+
+        it("should handle keys with special characters", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort user:123 tag:v1.2.3 category:beach_hotel")
+            assert.are.equal(4, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("user:123", parsed_keys[2])
+            assert.are.equal("tag:v1.2.3", parsed_keys[3])
+            assert.are.equal("category:beach_hotel", parsed_keys[4])
+        end)
+
+        it("should handle real-world example header", function()
+            local parsed_keys = surrogate_key_parser("hotel:luxury-resort hotels:all pricing:2024 availability:current content:hotel location:beach")
+            assert.are.equal(6, #parsed_keys)
+            assert.are.equal("hotel:luxury-resort", parsed_keys[1])
+            assert.are.equal("hotels:all", parsed_keys[2])
+            assert.are.equal("pricing:2024", parsed_keys[3])
+            assert.are.equal("availability:current", parsed_keys[4])
+            assert.are.equal("content:hotel", parsed_keys[5])
+            assert.are.equal("location:beach", parsed_keys[6])
+        end)
+
+        it("should handle very long key names", function()
+            local very_long_key_name = "very:long:key:name:with:many:colons:and:segments:that:could:appear:in:real:world"
+            local parsed_keys = surrogate_key_parser(very_long_key_name .. " short")
+            assert.are.equal(2, #parsed_keys)
+            assert.are.equal(very_long_key_name, parsed_keys[1])
+            assert.are.equal("short", parsed_keys[2])
+        end)
+
+        it("should preserve original key format", function()
+            local parsed_keys = surrogate_key_parser("Hotel:Luxury-Resort PRICING:2024 availability_current")
+            assert.are.equal(3, #parsed_keys)
+            assert.are.equal("Hotel:Luxury-Resort", parsed_keys[1])
+            assert.are.equal("PRICING:2024", parsed_keys[2])
+            assert.are.equal("availability_current", parsed_keys[3])
+        end)
+    end)
+end)
