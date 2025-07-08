@@ -14,6 +14,7 @@ services:
       - BACKEND_HEALTHCHECK_PATH=/__admin/health
       - LOG_LEVEL=debug
       - ENV=development
+      - ROUTE_PATTERNS_FILE=/usr/local/openresty/nginx/lua/config/route-patterns.example.json
     volumes:
       - .:/workspace
     depends_on:
@@ -25,6 +26,8 @@ services:
           path: ./src
         - action: rebuild
           path: ./nginx
+        - action: rebuild
+          path: ./config
 
   # Redis service (for development/testing only)
   redis:

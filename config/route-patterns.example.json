@@ -1,40 +1,16 @@
 {
   "patterns": [
     {
-      "regex": "^/hotels/([^/]+)$",
-      "name": "hotels/[name]"
+      "regex": "^/hotel/([^/]+)$",
+      "name": "hotel/[name]"
     },
     {
-      "regex": "^/hotels/([^/]+)/rooms$",
-      "name": "hotels/[name]/rooms"
+      "regex": "^/hotel/([^/]+)/rooms$",
+      "name": "hotel/[name]/rooms"
     },
     {
-      "regex": "^/hotels/([^/]+)/rooms/([^/]+)$",
-      "name": "hotels/[name]/rooms/[id]"
-    },
-    {
-      "regex": "^/api/v(\\d+)/",
-      "name": "api/v[version]"
-    },
-    {
-      "regex": "^/users/([^/]+)$",
-      "name": "users/[id]"
-    },
-    {
-      "regex": "^/search\\?",
-      "name": "search"
-    },
-    {
-      "regex": "^/products/([^/]+)$",
-      "name": "products/[id]"
-    },
-    {
-      "regex": "^/categories/([^/]+)/products$",
-      "name": "categories/[name]/products"
-    },
-    {
-      "regex": "^/admin/",
-      "name": "admin"
+      "regex": "^/hotel/([^/]+)/rooms/([^/]+)$",
+      "name": "hotel/[name]/rooms/[id]"
     },
     {
       "regex": "^/health$",

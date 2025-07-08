@@ -1,5 +1,6 @@
 local Request = require "modules.http.request"
 local cjson = require "cjson"
+local config = require "modules.config"
 
 --- @return string, table, string, string, number
 local function extract_request_metadata()
@@ -66,9 +67,11 @@ local function send_response_to_client(response)
         ngx.header[key] = value
     end
 
-    ngx.header['X-DEBUG'] = cjson.encode({
-        locals = response.locals
-    })
+    if (config.get_log_level_value() <= config.get_log_levels().debug) then
+        ngx.header['X-DEBUG'] = cjson.encode({
+            locals = response.locals
+        })
+    end
 
     ngx.print(response.body)
 end
