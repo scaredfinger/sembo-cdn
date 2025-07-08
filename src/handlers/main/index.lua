@@ -1,4 +1,5 @@
 local Request = require "modules.http.request"
+local cjson = require "cjson"
 
 --- @return string, table, string, string, number
 local function extract_request_metadata()
@@ -44,10 +45,13 @@ local incoming_request = Request:new(
 local execute_upstream = require "handlers.main.upstream"
 local cache = require "handlers.main.cache"
 local surrogate = require "handlers.main.surrogate"
+local router = require "handlers.main.router"
 
 local function execute(request)
-    return cache:execute(request, function (inner_request)
-        return surrogate:execute(inner_request, execute_upstream)
+    return cache:execute(request, function (cir)
+        return router:execute(cir, function (sir)
+            return surrogate:execute(sir, execute_upstream)
+        end)
     end)
 end
 
@@ -61,6 +65,10 @@ local function send_response_to_client(response)
     for key, value in pairs(response.headers) do
         ngx.header[key] = value
     end
+
+    ngx.header['X-DEBUG'] = cjson.encode({
+        locals = response.locals
+    })
 
     ngx.print(response.body)
 end
