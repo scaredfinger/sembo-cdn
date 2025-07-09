@@ -22,6 +22,12 @@ function TagsProvider:remove_key_from_tag(tag, key)
     error("remove_key_from_tag method must be implemented by concrete tags provider")
 end
 
+--- @param tag string
+--- @return string[]|nil
+function TagsProvider:get_keys_for_tag(tag)
+    error("get_keys_for_tag method must be implemented by concrete tags provider")
+end
+
 --- @param tag string 
 --- @return boolean 
 function TagsProvider:del_by_tag(tag)

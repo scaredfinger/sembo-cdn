@@ -92,6 +92,21 @@ describe("RedisTagsProvider", function()
         assert.same(redis_client.sets[tag], {})
     end)
     
+    it("should get keys for tag", function()
+        local tag = "test_tag"
+        local key1, key2 = "key1", "key2"
+        tags_provider:add_key_to_tag(key1, tag)
+        tags_provider:add_key_to_tag(key2, tag)
+        
+        local keys = tags_provider:get_keys_for_tag(tag)
+        assert.are.same({key1, key2}, keys)
+    end)
+    
+    it("should return empty table for non-existent tag", function()
+        local keys = tags_provider:get_keys_for_tag("non_existent_tag")
+        assert.are.same({}, keys)
+    end)
+    
     it("should delete by tag", function()
         local tag, key1, key2 = "test_tag", "key1", "key2"
         tags_provider:add_key_to_tag(key1, tag)

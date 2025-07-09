@@ -42,6 +42,18 @@ function RedisTagsProvider:remove_key_from_tag(tag, key)
     return result ~= nil and result ~= false
 end
 
+--- @param tag string
+--- @return string[]|nil
+function RedisTagsProvider:get_keys_for_tag(tag)
+    if not self:connect() then
+        return nil
+    end
+    
+    local keys = self.redis:smembers(tag)
+    self:disconnect()
+    return keys
+end
+
 --- @param tag string 
 --- @return boolean 
 function RedisTagsProvider:del_by_tag(tag)

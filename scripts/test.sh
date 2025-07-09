@@ -11,12 +11,8 @@ if ! command -v busted &> /dev/null; then
     luarocks install busted
 fi
 
-# Set Lua path
-export LUA_PATH="/workspaces/sembo-cdn/nginx/lua/?.lua;/workspaces/sembo-cdn/nginx/lua/?/init.lua;;"
-
 # Run unit tests
 echo "Running unit tests..."
-cd /workspaces/sembo-cdn
 busted tests/unit/ --verbose --pattern=test_
 
 # Run integration tests if services are available
