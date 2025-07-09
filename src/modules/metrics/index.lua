@@ -9,10 +9,18 @@
 ---@field label_values table<string, string[]>
 ---@field buckets number[]
 
+---@class CompositeConfig
+---@field help string
+---@field label_values table<string, string[]>
+---@field histogram_suffix string
+---@field counter_suffix string
+---@field buckets number[]
+
 ---@class Metrics
 ---@field metrics_dict table
 ---@field histograms table<string, HistogramConfig>
 ---@field counters table<string, CounterConfig>
+---@field composites table<string, CompositeConfig>
 local Metrics = {}
 Metrics.__index = Metrics
 
@@ -26,7 +34,8 @@ function Metrics.new(metrics_dict)
     local self = setmetatable({
         metrics_dict = metrics_dict,
         histograms = {},
-        counters = {}
+        counters = {},
+        composites = {}
     }, Metrics)
 
     return self
@@ -243,7 +252,127 @@ function Metrics:inc_counter(name, value, labels)
     self.metrics_dict:incr(key, value)
 end
 
--- ...existing code...
+-- Generate all combinations of label values for composite metrics
+---@param label_values table<string, string[]>
+---@return table[]
+function Metrics:generate_composite_label_combinations(label_values)
+    if not label_values or next(label_values) == nil then
+        return {{}}
+    end
+    
+    -- Extract label names from dictionary keys
+    local label_names = {}
+    for label_name, _ in pairs(label_values) do
+        table.insert(label_names, label_name)
+    end
+    table.sort(label_names) -- Sort for consistent ordering
+    
+    local function cartesian_product(arrays)
+        if #arrays == 0 then
+            return {{}}
+        end
+        
+        local result = {}
+        local first_array = arrays[1]
+        local rest_arrays = {}
+        for i = 2, #arrays do
+            table.insert(rest_arrays, arrays[i])
+        end
+        
+        local rest_combinations = cartesian_product(rest_arrays)
+        
+        for _, first_value in ipairs(first_array) do
+            for _, rest_combination in ipairs(rest_combinations) do
+                local combination = {first_value}
+                for _, value in ipairs(rest_combination) do
+                    table.insert(combination, value)
+                end
+                table.insert(result, combination)
+            end
+        end
+        
+        return result
+    end
+    
+    -- Build arrays for cartesian product
+    local value_arrays = {}
+    for _, label_name in ipairs(label_names) do
+        local values = label_values[label_name]
+        if not values then
+            error("No values provided for label: " .. label_name)
+        end
+        table.insert(value_arrays, values)
+    end
+    
+    local combinations = cartesian_product(value_arrays)
+    
+    -- Convert to label tables
+    local label_combinations = {}
+    for _, combination in ipairs(combinations) do
+        local labels = {}
+        for i, label_name in ipairs(label_names) do
+            labels[label_name] = combination[i]
+        end
+        table.insert(label_combinations, labels)
+    end
+    
+    return label_combinations
+end
+
+---@param base_name string
+---@param help string
+---@param label_values? table<string, string[]>
+---@param histogram_suffix? string
+---@param counter_suffix? string
+---@param buckets? number[]
+function Metrics:register_composite(base_name, help, label_values, histogram_suffix, counter_suffix, buckets)
+    label_values = label_values or {}
+    histogram_suffix = histogram_suffix or "_seconds"
+    counter_suffix = counter_suffix or "_total"
+    buckets = buckets or {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0}
+    
+    local histogram_name = "success_" .. base_name .. histogram_suffix
+    local counter_name = "failed_" .. base_name .. counter_suffix
+    
+    -- Store composite configuration
+    self.composites[base_name] = {
+        help = help,
+        label_values = label_values,
+        histogram_suffix = histogram_suffix,
+        counter_suffix = counter_suffix,
+        buckets = buckets
+    }
+    
+    -- Register the histogram and counter
+    self:register_histogram(histogram_name, help .. " (success)", label_values, buckets)
+    self:register_counter(counter_name, help .. " (failed)", label_values)
+end
+
+---@param base_name string
+---@param value number
+---@param labels? table<string, any>
+function Metrics:observe_composite_success(base_name, value, labels)
+    local composite_config = self.composites[base_name]
+    if not composite_config then
+        error("Composite metric not registered: " .. base_name)
+    end
+    
+    local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
+    self:observe_histogram(histogram_name, value, labels)
+end
+
+---@param base_name string
+---@param value? number
+---@param labels? table<string, any>
+function Metrics:inc_composite_failure(base_name, value, labels)
+    local composite_config = self.composites[base_name]
+    if not composite_config then
+        error("Composite metric not registered: " .. base_name)
+    end
+    
+    local counter_name = "failed_" .. base_name .. composite_config.counter_suffix
+    self:inc_counter(counter_name, value, labels)
+end
 
 ---@return string
 function Metrics:generate_prometheus()
@@ -274,6 +403,40 @@ function Metrics:generate_prometheus()
 
     -- Generate histogram metrics
     for name, config in pairs(self.histograms) do
+        table.insert(output, "# HELP " .. name .. " " .. config.help)
+        table.insert(output, "# TYPE " .. name .. " histogram")
+
+        local keys = self.metrics_dict:get_keys()
+        
+        -- Generate bucket metrics first (for proper histogram format)
+        for _, key in ipairs(keys) do
+            if string.match(key, "^" .. name .. ".*_bucket_") then
+                local value = self.metrics_dict:get(key)
+                if value then
+                    local metric_line = self:format_prometheus_bucket_line(key, value)
+                    if metric_line then
+                        table.insert(output, metric_line)
+                    end
+                end
+            end
+        end
+        
+        -- Generate sum and count metrics
+        for _, key in ipairs(keys) do
+            if string.match(key, "^" .. name .. ".*_sum$") or string.match(key, "^" .. name .. ".*_count$") then
+                local value = self.metrics_dict:get(key)
+                if value then
+                    local metric_line = self:format_prometheus_line(key, value)
+                    if metric_line then
+                        table.insert(output, metric_line)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Generate composite metrics
+    for name, config in pairs(self.composites) do
         table.insert(output, "# HELP " .. name .. " " .. config.help)
         table.insert(output, "# TYPE " .. name .. " histogram")
 
