@@ -34,13 +34,14 @@ RUN luarocks install lua-resty-redis \
     && luarocks install luacheck \
     && luarocks install redis
 
-# Set working directory
-WORKDIR /workspace
+
+RUN groupadd docker && usermod -aG docker ubuntu
+USER ubuntu
 
 # Set environment variables for Lua development
 ENV PATH="/usr/local/bin:$PATH"
 ENV LUA_PATH="/workspace/nginx/lua/?.lua;/workspace/nginx/lua/?/init.lua;;"
 ENV LUA_CPATH="/usr/lib/x86_64-linux-gnu/lua/5.1/?.so;/usr/local/lib/lua/5.1/?.so;;"
 
-# Default command for development
-CMD ["/bin/bash"]
+# Set working directory
+WORKDIR /workspace

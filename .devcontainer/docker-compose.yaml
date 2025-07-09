@@ -1,0 +1,14 @@
+services:
+  dev:
+    build:
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace
+    env_file:
+      - ../.env
+    command: /bin/bash -c "while sleep 10000; do :; done"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+      - backend.docker.internal:host-gateway
+      - web.docker.internal:host-gateway
+  
