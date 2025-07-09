@@ -12,7 +12,7 @@ local function execute(request)
 end
 
 local http = require "handlers.utils.http"
-local incoming_request = http.incoming_request
+local incoming_request = http.get_incoming_request()
 local send_response_to_client = http.send_response_to_client
 
 local cached_or_fresh_response = execute(incoming_request)
