@@ -41,4 +41,28 @@ local incoming_request = Request:new(
     current_timestamp
 )
 
-return incoming_request
+local cjson = require "cjson"
+local config = require "modules.config"
+
+--- @param response Response
+--- @return nil
+local function send_response_to_client(response)
+    ngx.status = response.status or 200
+
+    for key, value in pairs(response.headers) do
+        ngx.header[key] = value
+    end
+
+    if (config.get_log_level_value() <= config.get_log_levels().debug) then
+        ngx.header['X-DEBUG'] = cjson.encode({
+            locals = response.locals
+        })
+    end
+
+    ngx.print(response.body)
+end
+
+return {
+    incoming_request = incoming_request,
+    send_response_to_client = send_response_to_client
+}
