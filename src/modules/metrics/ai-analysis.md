@@ -47,10 +47,11 @@ metric_name:label1=value1,label2=value2_count
 - Integration tests via handler
 
 ### Potential Improvements
-1. **Histogram Buckets**: Currently only sum/count, could add configurable buckets
+1. **Histogram Buckets**: Currently supports configurable buckets with reasonable defaults
 2. **Metric Cleanup**: No TTL or cleanup mechanism for old metrics
 3. **Memory Monitoring**: No built-in memory usage tracking
 4. **Batch Operations**: Could optimize multiple observations
+5. **Label Name Extraction**: Automatically extracts label names from `label_values` keys for cleaner API
 
 ### Integration Points
 - **Handler**: `/metrics` endpoint for Prometheus scraping
@@ -66,3 +67,25 @@ metric_name:label1=value1,label2=value2_count
 - Monitor shared dictionary memory usage
 - Track metric registration patterns
 - Alert on excessive label cardinality
+
+### API Design Improvements
+
+#### Label Management Simplification
+- **Before**: Required separate `label_names` and `label_values` parameters
+- **After**: Automatically extracts label names from `label_values` dictionary keys
+- **Benefits**: 
+  - Eliminates redundancy and potential mismatches
+  - Cleaner API with fewer parameters
+  - Automatic label name ordering for consistency
+  - Reduced chance of configuration errors
+
+#### Method Signatures
+```lua
+-- Previous API
+metrics:register_histogram(name, help, label_names, label_values, buckets)
+metrics:register_counter(name, help, label_names, label_values)
+
+-- Current API  
+metrics:register_histogram(name, help, label_values, buckets)
+metrics:register_counter(name, help, label_values)
+```

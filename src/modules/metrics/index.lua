@@ -1,11 +1,11 @@
 ---@class CounterConfig
 ---@field help string
----@field label_names string[]
+---@field label_names string[] -- Deprecated, kept for compatibility
 ---@field label_values table<string, string[]>
 
 ---@class HistogramConfig
 ---@field help string
----@field label_names string[]
+---@field label_names string[] -- Deprecated, kept for compatibility
 ---@field label_values table<string, string[]>
 ---@field buckets number[]
 
@@ -33,13 +33,19 @@ function Metrics.new(metrics_dict)
 end
 
 -- Generate all combinations of label values
----@param label_names string[]
 ---@param label_values table<string, string[]>
 ---@return table[]
-function Metrics:generate_label_combinations(label_names, label_values)
-    if not label_names or #label_names == 0 then
+function Metrics:generate_label_combinations(label_values)
+    if not label_values or next(label_values) == nil then
         return {{}}
     end
+    
+    -- Extract label names from dictionary keys
+    local label_names = {}
+    for label_name, _ in pairs(label_values) do
+        table.insert(label_names, label_name)
+    end
+    table.sort(label_names) -- Sort for consistent ordering
     
     local function cartesian_product(arrays)
         if #arrays == 0 then
@@ -140,20 +146,18 @@ end
 
 ---@param name string
 ---@param help string
----@param label_names? string[]
 ---@param label_values? table<string, string[]>
 ---@param buckets? number[]
-function Metrics:register_histogram(name, help, label_names, label_values, buckets)
-    label_names = label_names or {}
+function Metrics:register_histogram(name, help, label_values, buckets)
     label_values = label_values or {}
     buckets = buckets or {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0}
     
     -- Generate all label combinations
-    local label_combinations = self:generate_label_combinations(label_names, label_values)
+    local label_combinations = self:generate_label_combinations(label_values)
     
     self.histograms[name] = {
         help = help,
-        label_names = label_names,
+        label_names = {},  -- No longer needed, kept for compatibility
         label_values = label_values,
         buckets = buckets
     }
@@ -203,18 +207,16 @@ end
 
 ---@param name string
 ---@param help string
----@param label_names? string[]
 ---@param label_values? table<string, string[]>
-function Metrics:register_counter(name, help, label_names, label_values)
-    label_names = label_names or {}
+function Metrics:register_counter(name, help, label_values)
     label_values = label_values or {}
     
     -- Generate all label combinations
-    local label_combinations = self:generate_label_combinations(label_names, label_values)
+    local label_combinations = self:generate_label_combinations(label_values)
     
     self.counters[name] = {
         help = help,
-        label_names = label_names,
+        label_names = {},  -- No longer needed, kept for compatibility
         label_values = label_values
     }
 

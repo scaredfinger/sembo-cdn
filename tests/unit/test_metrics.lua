@@ -53,7 +53,7 @@ describe("metrics module", function()
         
         it("should register histogram with label values", function()
             metrics:register_histogram("test_histogram", "Test histogram", 
-                {"method"}, {method={"GET", "POST"}})
+                {method={"GET", "POST"}})
             
             -- Check GET labels
             assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET_sum"))
@@ -68,7 +68,7 @@ describe("metrics module", function()
         
         it("should register histogram with custom buckets", function()
             metrics:register_histogram("test_histogram", "Test histogram", 
-                {}, {}, {0.1, 0.5, 1.0})
+                {}, {0.1, 0.5, 1.0})
             
             -- Keys use tostring() so 1.0 becomes "1"
             assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_0.1"))
@@ -79,7 +79,7 @@ describe("metrics module", function()
         
         it("should generate all label combinations", function()
             metrics:register_histogram("test_histogram", "Test histogram", 
-                {"method", "status"}, {method={"GET", "POST"}, status={"200", "404"}})
+                {method={"GET", "POST"}, status={"200", "404"}})
             
             -- Should create 4 combinations: GET+200, GET+404, POST+200, POST+404
             assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET,status=200_sum"))
@@ -106,7 +106,7 @@ describe("metrics module", function()
         
         it("should observe histogram value with labels", function()
             metrics:register_histogram("test_histogram", "Test histogram", 
-                {"method"}, {method={"GET"}})
+                {method={"GET"}})
             metrics:observe_histogram("test_histogram", 0.15, {method="GET"})
             
             assert.equals(0.15, ngx.shared.metrics:get("test_histogram:method=GET_sum"))
@@ -146,7 +146,7 @@ describe("metrics module", function()
     
     describe("generate_prometheus", function()
         it("should generate valid Prometheus histogram output", function()
-            metrics:register_histogram("test_histogram", "Test histogram", {}, {}, {0.1, 0.5, 1.0})
+            metrics:register_histogram("test_histogram", "Test histogram", {}, {0.1, 0.5, 1.0})
             metrics:observe_histogram("test_histogram", 0.25)
             
             local output = metrics:generate_prometheus()
@@ -169,7 +169,7 @@ describe("metrics module", function()
         
         it("should generate valid Prometheus counter output", function()
             metrics:register_counter("test_counter", "Test counter", 
-                {"method"}, {method={"GET", "POST"}})
+                {method={"GET", "POST"}})
             metrics:inc_counter("test_counter", 5, {method="GET"})
             metrics:inc_counter("test_counter", 3, {method="POST"})
             
@@ -216,7 +216,7 @@ describe("metrics module", function()
         
         it("should handle concurrent observations with same labels", function()
             metrics:register_histogram("labeled_histogram", "Test labeled concurrent access", 
-                {"method"}, {method={"GET"}})
+                {method={"GET"}})
             
             -- Multiple concurrent observations with same labels
             local labels = {method="GET"}
@@ -234,7 +234,7 @@ describe("metrics module", function()
         
         it("should handle concurrent observations with different labels", function()
             metrics:register_histogram("multi_label_histogram", "Test multi-label concurrent access",
-                {"method", "status"}, {
+                {
                     method={"GET", "POST"},
                     status={"200", "404"}
                 })
@@ -327,7 +327,7 @@ describe("metrics module", function()
         
         it("should register counter with label values", function()
             metrics:register_counter("test_counter", "Test counter", 
-                {"method"}, {method={"GET", "POST"}})
+                {method={"GET", "POST"}})
             
             assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET"))
             assert.equals(0, ngx.shared.metrics:get("test_counter:method=POST"))
@@ -335,7 +335,7 @@ describe("metrics module", function()
         
         it("should generate all label combinations for counters", function()
             metrics:register_counter("test_counter", "Test counter", 
-                {"method", "status"}, {method={"GET", "POST"}, status={"200", "404"}})
+                {method={"GET", "POST"}, status={"200", "404"}})
             
             -- Should create 4 combinations
             assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET,status=200"))
@@ -362,7 +362,7 @@ describe("metrics module", function()
         
         it("should increment counter with labels", function()
             metrics:register_counter("test_counter", "Test counter", 
-                {"method"}, {method={"GET"}})
+                {method={"GET"}})
             metrics:inc_counter("test_counter", 3, {method="GET"})
             
             assert.equals(3, ngx.shared.metrics:get("test_counter:method=GET"))
@@ -399,7 +399,7 @@ describe("metrics module", function()
         
         it("should handle concurrent counter increments with labels", function()
             metrics:register_counter("labeled_counter", "Test labeled counter access", 
-                {"method"}, {method={"GET", "POST"}})
+                {method={"GET", "POST"}})
             
             -- Concurrent increments with different labels
             metrics:inc_counter("labeled_counter", 2, {method="GET"})

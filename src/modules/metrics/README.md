@@ -22,7 +22,6 @@ local metrics = Metrics.new(ngx.shared.metrics)
 metrics:register_counter(
     "http_requests_total",
     "Total HTTP requests",
-    {"method", "route"},
     {
         method={"GET", "POST", "PUT"},
         route={"/api/users", "/api/orders", "/health"}
@@ -33,7 +32,6 @@ metrics:register_counter(
 metrics:register_histogram(
     "response_time_seconds",
     "HTTP response time in seconds",
-    {"method", "route"},
     {
         method={"GET", "POST"},
         route={"/api/users", "/api/health"}
@@ -71,21 +69,19 @@ Creates a new metrics instance.
 
 ### Counter Methods
 
-#### `metrics:register_counter(name, help, label_names, label_values)`
+#### `metrics:register_counter(name, help, label_values)`
 Registers a counter metric with pre-defined label combinations.
 
 **Parameters:**
 - `name` (string): Metric name
 - `help` (string): Help text for Prometheus
-- `label_names` (optional): Array of label names
-- `label_values` (optional): Table of label value arrays
+- `label_values` (optional): Table mapping label names to arrays of possible values
 
 **Example:**
 ```lua
 metrics:register_counter(
     "http_requests_total",
     "Total HTTP requests",
-    {"method", "status"},
     {
         method={"GET", "POST"},
         status={"200", "404", "500"}
@@ -111,14 +107,13 @@ metrics:inc_counter("http_requests_total", 1, {
 
 ### Histogram Methods
 
-#### `metrics:register_histogram(name, help, label_names, label_values, buckets)`
+#### `metrics:register_histogram(name, help, label_values, buckets)`
 Registers a histogram metric with pre-defined label combinations.
 
 **Parameters:**
 - `name` (string): Metric name
 - `help` (string): Help text for Prometheus
-- `label_names` (optional): Array of label names
-- `label_values` (optional): Table of label value arrays
+- `label_values` (optional): Table mapping label names to arrays of possible values
 - `buckets` (optional): Array of bucket boundaries
 
 **Example:**
@@ -126,7 +121,6 @@ Registers a histogram metric with pre-defined label combinations.
 metrics:register_histogram(
     "request_duration",
     "Request duration in seconds",
-    {"method", "status"},
     {
         method={"GET", "POST"}, 
         status={"200", "404"}
@@ -183,10 +177,10 @@ This module prevents race conditions through:
 ```lua
 -- Register all metrics during application startup
 metrics:register_counter("api_requests_total", "API requests", 
-    {"endpoint"}, {endpoint={"/users", "/orders"}})
+    {endpoint={"/users", "/orders"}})
     
 metrics:register_histogram("api_response_time", "API response time", 
-    {"endpoint"}, {endpoint={"/users", "/orders"}})
+    {endpoint={"/users", "/orders"}})
 ```
 
 ### 2. Pre-define Label Combinations
@@ -196,7 +190,7 @@ local endpoints = {"/api/users", "/api/orders", "/health"}
 local methods = {"GET", "POST", "PUT", "DELETE"}
 
 metrics:register_counter("request_count", "Request count", 
-    {"method", "endpoint"}, {method=methods, endpoint=endpoints})
+    {method=methods, endpoint=endpoints})
 ```
 
 ### 3. Use Consistent Label Names
@@ -235,7 +229,7 @@ local metrics = Metrics.new(ngx.shared.metrics)
 
 -- Register metrics during init
 metrics:register_histogram("request_duration", "Request duration", 
-    {"route"}, {{route="/api/users"}})
+    {route={"/api/users"}})
 
 -- Use in request handlers
 local start_time = ngx.now()
