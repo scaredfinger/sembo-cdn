@@ -46,40 +46,89 @@ describe("metrics module", function()
             
             assert.equals(0, ngx.shared.metrics:get("test_histogram_sum"))
             assert.equals(0, ngx.shared.metrics:get("test_histogram_count"))
+            -- Check some default buckets
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_0.005"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_inf"))
         end)
         
-        it("should register histogram with label combinations", function()
-            metrics:register_histogram("test_histogram", "Test histogram", {"method"}, {{method="GET"}})
+        it("should register histogram with label values", function()
+            metrics:register_histogram("test_histogram", "Test histogram", 
+                {"method"}, {method={"GET", "POST"}})
             
+            -- Check GET labels
             assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET_sum"))
             assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET_count"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET_bucket_0.005"))
+            
+            -- Check POST labels
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=POST_sum"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=POST_count"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=POST_bucket_0.005"))
+        end)
+        
+        it("should register histogram with custom buckets", function()
+            metrics:register_histogram("test_histogram", "Test histogram", 
+                {}, {}, {0.1, 0.5, 1.0})
+            
+            -- Keys use tostring() so 1.0 becomes "1"
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_0.1"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_0.5"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_1"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_inf"))
+        end)
+        
+        it("should generate all label combinations", function()
+            metrics:register_histogram("test_histogram", "Test histogram", 
+                {"method", "status"}, {method={"GET", "POST"}, status={"200", "404"}})
+            
+            -- Should create 4 combinations: GET+200, GET+404, POST+200, POST+404
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET,status=200_sum"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET,status=404_sum"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=POST,status=200_sum"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=POST,status=404_sum"))
         end)
     end)
     
     describe("observe_histogram", function()
         it("should observe histogram value without labels", function()
             metrics:register_histogram("test_histogram", "Test histogram")
-            metrics:observe_histogram("test_histogram", 5.0)
+            metrics:observe_histogram("test_histogram", 0.25)
             
-            assert.equals(5.0, ngx.shared.metrics:get("test_histogram_sum"))
+            assert.equals(0.25, ngx.shared.metrics:get("test_histogram_sum"))
             assert.equals(1, ngx.shared.metrics:get("test_histogram_count"))
+            
+            -- Check bucket increments - use actual key format
+            assert.equals(1, ngx.shared.metrics:get("test_histogram_bucket_0.25"))
+            assert.equals(1, ngx.shared.metrics:get("test_histogram_bucket_0.5"))
+            assert.equals(1, ngx.shared.metrics:get("test_histogram_bucket_inf"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram_bucket_0.1"))
         end)
         
         it("should observe histogram value with labels", function()
-            metrics:register_histogram("test_histogram", "Test histogram", {"method"}, {{method="GET"}})
-            metrics:observe_histogram("test_histogram", 3.0, {method="GET"})
+            metrics:register_histogram("test_histogram", "Test histogram", 
+                {"method"}, {method={"GET"}})
+            metrics:observe_histogram("test_histogram", 0.15, {method="GET"})
             
-            assert.equals(3.0, ngx.shared.metrics:get("test_histogram:method=GET_sum"))
+            assert.equals(0.15, ngx.shared.metrics:get("test_histogram:method=GET_sum"))
             assert.equals(1, ngx.shared.metrics:get("test_histogram:method=GET_count"))
+            
+            -- Check bucket increments - use actual key format
+            assert.equals(1, ngx.shared.metrics:get("test_histogram:method=GET_bucket_0.25"))
+            assert.equals(1, ngx.shared.metrics:get("test_histogram:method=GET_bucket_inf"))
+            assert.equals(0, ngx.shared.metrics:get("test_histogram:method=GET_bucket_0.1"))
         end)
         
         it("should accumulate histogram values", function()
             metrics:register_histogram("test_histogram", "Test histogram")
-            metrics:observe_histogram("test_histogram", 2.0)
-            metrics:observe_histogram("test_histogram", 3.0)
+            metrics:observe_histogram("test_histogram", 0.1)
+            metrics:observe_histogram("test_histogram", 0.3)
             
-            assert.equals(5.0, ngx.shared.metrics:get("test_histogram_sum"))
+            assert.equals(0.4, ngx.shared.metrics:get("test_histogram_sum"))
             assert.equals(2, ngx.shared.metrics:get("test_histogram_count"))
+            
+            -- Check bucket accumulation
+            assert.equals(2, ngx.shared.metrics:get("test_histogram_bucket_0.5"))
+            assert.equals(2, ngx.shared.metrics:get("test_histogram_bucket_inf"))
         end)
     end)
     
@@ -96,16 +145,25 @@ describe("metrics module", function()
     end)
     
     describe("generate_prometheus", function()
-        it("should generate valid Prometheus output", function()
-            metrics:register_histogram("test_histogram", "Test histogram")
-            metrics:observe_histogram("test_histogram", 1.5)
+        it("should generate valid Prometheus histogram output", function()
+            metrics:register_histogram("test_histogram", "Test histogram", {}, {}, {0.1, 0.5, 1.0})
+            metrics:observe_histogram("test_histogram", 0.25)
             
             local output = metrics:generate_prometheus()
             
             assert.is_string(output)
             assert.is_true(string.find(output, "# HELP test_histogram Test histogram") ~= nil)
             assert.is_true(string.find(output, "# TYPE test_histogram histogram") ~= nil)
-            assert.is_true(string.find(output, "test_histogram_sum 1.5") ~= nil)
+            
+            -- Check bucket outputs
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.5"} 1') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="1"} 1') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.1"} 0') ~= nil)
+            -- Use plain string match for +Inf (no pattern matching)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="+Inf"} 1', 1, true) ~= nil)
+            
+            -- Check sum and count
+            assert.is_true(string.find(output, "test_histogram_sum 0.25") ~= nil)
             assert.is_true(string.find(output, "test_histogram_count 1") ~= nil)
         end)
     end)
@@ -143,7 +201,7 @@ describe("metrics module", function()
         
         it("should handle concurrent observations with same labels", function()
             metrics:register_histogram("labeled_histogram", "Test labeled concurrent access", 
-                {"method"}, {{method="GET"}})
+                {"method"}, {method={"GET"}})
             
             -- Multiple concurrent observations with same labels
             local labels = {method="GET"}
@@ -162,9 +220,8 @@ describe("metrics module", function()
         it("should handle concurrent observations with different labels", function()
             metrics:register_histogram("multi_label_histogram", "Test multi-label concurrent access",
                 {"method", "status"}, {
-                    {method="GET", status="200"},
-                    {method="POST", status="200"},
-                    {method="GET", status="404"}
+                    method={"GET", "POST"},
+                    status={"200", "404"}
                 })
             
             -- Concurrent observations with different label combinations
@@ -226,6 +283,23 @@ describe("metrics module", function()
             -- Verify all observations were recorded correctly
             assert.equals(total_sum, ngx.shared.metrics:get("rapid_test_sum"))
             assert.equals(num_observations, ngx.shared.metrics:get("rapid_test_count"))
+        end)
+    end)
+    
+    describe("format_prometheus_bucket_line", function()
+        it("should format bucket metric without labels", function()
+            local line = metrics:format_prometheus_bucket_line("test_metric_bucket_0.5", 42)
+            assert.equals('test_metric_bucket{le="0.5"} 42', line)
+        end)
+        
+        it("should format bucket metric with labels", function()
+            local line = metrics:format_prometheus_bucket_line("test_metric:method=GET,route=test_bucket_1.0", 42)
+            assert.equals('test_metric_bucket{method="GET",route="test",le="1.0"} 42', line)
+        end)
+        
+        it("should format +Inf bucket", function()
+            local line = metrics:format_prometheus_bucket_line("test_metric_bucket_inf", 42)
+            assert.equals('test_metric_bucket{le="+Inf"} 42', line)
         end)
     end)
 end)
