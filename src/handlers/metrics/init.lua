@@ -1,13 +1,10 @@
--- Metrics handler for Prometheus format
-local Metrics = require "modules.metrics.index"
-
 local routes_config = require "handlers.utils.routes"
 local route_names = {}
 for _, pattern in ipairs(routes_config.patterns) do
   table.insert(route_names, pattern.name)
 end
 
-local metrics = Metrics.new(ngx.shared.metrics)
+local metrics = require "handlers.metrics.instance"
 
 metrics:register_composite({
   name = "upstream_request",

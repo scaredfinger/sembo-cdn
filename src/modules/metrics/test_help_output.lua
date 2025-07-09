@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 -- Quick test to verify empty help output
-local Metrics = require "src.modules.metrics.index"
+local Metrics = require "modules.metrics.index"
 
 -- Mock ngx.shared.metrics
 local mock_metrics = {

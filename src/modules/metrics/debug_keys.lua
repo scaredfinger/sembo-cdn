@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 -- Debug test to see the keys being generated
-local Metrics = require "src.modules.metrics.index"
+local Metrics = require "modules.metrics.index"
 
 -- Mock ngx.shared.metrics
 local mock_metrics = {
