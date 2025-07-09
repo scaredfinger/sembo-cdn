@@ -81,8 +81,8 @@ metric_name:label1=value1,label2=value2_count
 #### Method Signatures
 ```lua
 -- Current API
-metrics:register_histogram(name, help, label_values, buckets)
-metrics:register_counter(name, help, label_values)
+metrics:register_histogram(name, label_values, buckets)
+metrics:register_counter(name, label_values)
 metrics:register_composite(config)
 ```
 

@@ -33,7 +33,6 @@ metrics:register_composite({
 -- Register individual metrics
 metrics:register_counter(
     "http_requests_total",
-    "Total HTTP requests",
     {
         method={"GET", "POST", "PUT"},
         route={"/api/users", "/api/orders", "/health"}
@@ -43,7 +42,6 @@ metrics:register_counter(
 -- Register a histogram with expected label combinations
 metrics:register_histogram(
     "response_time_seconds",
-    "HTTP response time in seconds",
     {
         method={"GET", "POST"},
         route={"/api/users", "/api/health"}
@@ -94,19 +92,17 @@ Creates a new metrics instance.
 
 ### Counter Methods
 
-#### `metrics:register_counter(name, help, label_values)`
+#### `metrics:register_counter(name, label_values)`
 Registers a counter metric with pre-defined label combinations.
 
 **Parameters:**
 - `name` (string): Metric name
-- `help` (string): Help text for Prometheus
 - `label_values` (optional): Table mapping label names to arrays of possible values
 
 **Example:**
 ```lua
 metrics:register_counter(
     "http_requests_total",
-    "Total HTTP requests",
     {
         method={"GET", "POST"},
         status={"200", "404", "500"}
@@ -132,12 +128,11 @@ metrics:inc_counter("http_requests_total", 1, {
 
 ### Histogram Methods
 
-#### `metrics:register_histogram(name, help, label_values, buckets)`
+#### `metrics:register_histogram(name, label_values, buckets)`
 Registers a histogram metric with pre-defined label combinations.
 
 **Parameters:**
 - `name` (string): Metric name
-- `help` (string): Help text for Prometheus
 - `label_values` (optional): Table mapping label names to arrays of possible values
 - `buckets` (optional): Array of bucket boundaries
 
@@ -145,7 +140,6 @@ Registers a histogram metric with pre-defined label combinations.
 ```lua
 metrics:register_histogram(
     "request_duration",
-    "Request duration in seconds",
     {
         method={"GET", "POST"}, 
         status={"200", "404"}
@@ -265,10 +259,10 @@ This module prevents race conditions through:
 ### 1. Register Metrics Early
 ```lua
 -- Register all metrics during application startup
-metrics:register_counter("api_requests_total", "API requests", 
+metrics:register_counter("api_requests_total", 
     {endpoint={"/users", "/orders"}})
     
-metrics:register_histogram("api_response_time", "API response time", 
+metrics:register_histogram("api_response_time", 
     {endpoint={"/users", "/api/orders"}})
 ```
 
@@ -278,7 +272,7 @@ metrics:register_histogram("api_response_time", "API response time",
 local endpoints = {"/api/users", "/api/orders", "/health"}
 local methods = {"GET", "POST", "PUT", "DELETE"}
 
-metrics:register_counter("request_count", "Request count", 
+metrics:register_counter("request_count", 
     {method=methods, endpoint=endpoints})
 ```
 

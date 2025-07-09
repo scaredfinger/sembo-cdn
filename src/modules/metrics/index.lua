@@ -1,22 +1,18 @@
 ---@class CompositeMetricConfig
 ---@field name string
----@field help string
 ---@field label_values? table<string, string[]>
 ---@field histogram_suffix? string
 ---@field counter_suffix? string
 ---@field buckets? number[]
 
 ---@class CounterConfig
----@field help string
 ---@field label_values table<string, string[]>
 
 ---@class HistogramConfig
----@field help string
 ---@field label_values table<string, string[]>
 ---@field buckets number[]
 
 ---@class CompositeConfig
----@field help string
 ---@field label_values table<string, string[]>
 ---@field histogram_suffix string
 ---@field counter_suffix string
@@ -139,6 +135,22 @@ function Metrics:format_prometheus_line(key, value)
         return nil
     end
 
+    -- Check if this is a histogram sum or count metric
+    local histogram_suffix = ""
+    if string.match(key, "_sum$") then
+        histogram_suffix = "_sum"
+        -- Remove _sum from the key to parse labels correctly
+        key = string.gsub(key, "_sum$", "")
+        metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
+        metric_name = metric_name .. "_sum"
+    elseif string.match(key, "_count$") then
+        histogram_suffix = "_count"
+        -- Remove _count from the key to parse labels correctly
+        key = string.gsub(key, "_count$", "")
+        metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
+        metric_name = metric_name .. "_count"
+    end
+
     local formatted_line = metric_name
 
     if labels_str and labels_str ~= "" then
@@ -159,17 +171,15 @@ function Metrics:format_prometheus_line(key, value)
 end
 
 ---@param name string
----@param help string
 ---@param label_values? table<string, string[]>
 ---@param buckets? number[]
-function Metrics:register_histogram(name, help, label_values, buckets)
+function Metrics:register_histogram(name, label_values, buckets)
     label_values = label_values or {}
     buckets = buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
 
     local label_combinations = self:generate_label_combinations(label_values)
 
     self.histograms[name] = {
-        help = help,
         label_values = label_values,
         buckets = buckets
     }
@@ -212,15 +222,13 @@ function Metrics:observe_histogram(name, value, labels)
 end
 
 ---@param name string
----@param help string
 ---@param label_values? table<string, string[]>
-function Metrics:register_counter(name, help, label_values)
+function Metrics:register_counter(name, label_values)
     label_values = label_values or {}
 
     local label_combinations = self:generate_label_combinations(label_values)
 
     self.counters[name] = {
-        help = help,
         label_values = label_values
     }
 
@@ -256,15 +264,14 @@ function Metrics:register_composite(config)
     local counter_name = "failed_" .. config.name .. counter_suffix
 
     self.composites[config.name] = {
-        help = config.help,
         label_values = label_values,
         histogram_suffix = histogram_suffix,
         counter_suffix = counter_suffix,
         buckets = buckets
     }
 
-    self:register_histogram(histogram_name, config.help .. " (success)", label_values, buckets)
-    self:register_counter(counter_name, config.help .. " (failed)", label_values)
+    self:register_histogram(histogram_name, label_values, buckets)
+    self:register_counter(counter_name, label_values)
 end
 
 ---@param base_name string
@@ -298,7 +305,7 @@ function Metrics:generate_prometheus()
     local output = {}
 
     for name, config in pairs(self.counters) do
-        table.insert(output, "# HELP " .. name .. " " .. config.help)
+        table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " counter")
 
         local keys = self.metrics_dict:get_keys()
@@ -318,7 +325,7 @@ function Metrics:generate_prometheus()
     end
 
     for name, config in pairs(self.histograms) do
-        table.insert(output, "# HELP " .. name .. " " .. config.help)
+        table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " histogram")
 
         local keys = self.metrics_dict:get_keys()
@@ -349,7 +356,7 @@ function Metrics:generate_prometheus()
     end
 
     for name, config in pairs(self.composites) do
-        table.insert(output, "# HELP " .. name .. " " .. config.help)
+        table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " histogram")
 
         local keys = self.metrics_dict:get_keys()

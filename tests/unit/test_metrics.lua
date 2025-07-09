@@ -42,7 +42,7 @@ describe("metrics module", function()
     
     describe("register_histogram", function()
         it("should register histogram without labels", function()
-            metrics:register_histogram("test_histogram", "Test histogram")
+            metrics:register_histogram("test_histogram")
             
             assert.equals(0, ngx.shared.metrics:get("test_histogram_sum"))
             assert.equals(0, ngx.shared.metrics:get("test_histogram_count"))
@@ -52,7 +52,7 @@ describe("metrics module", function()
         end)
         
         it("should register histogram with label values", function()
-            metrics:register_histogram("test_histogram", "Test histogram", 
+            metrics:register_histogram("test_histogram", 
                 {method={"GET", "POST"}})
             
             -- Check GET labels
@@ -67,7 +67,7 @@ describe("metrics module", function()
         end)
         
         it("should register histogram with custom buckets", function()
-            metrics:register_histogram("test_histogram", "Test histogram", 
+            metrics:register_histogram("test_histogram", 
                 {}, {0.1, 0.5, 1.0})
             
             -- Keys use tostring() so 1.0 becomes "1"
@@ -78,7 +78,7 @@ describe("metrics module", function()
         end)
         
         it("should generate all label combinations", function()
-            metrics:register_histogram("test_histogram", "Test histogram", 
+            metrics:register_histogram("test_histogram", 
                 {method={"GET", "POST"}, status={"200", "404"}})
             
             -- Should create 4 combinations: GET+200, GET+404, POST+200, POST+404
@@ -91,7 +91,7 @@ describe("metrics module", function()
     
     describe("observe_histogram", function()
         it("should observe histogram value without labels", function()
-            metrics:register_histogram("test_histogram", "Test histogram")
+            metrics:register_histogram("test_histogram")
             metrics:observe_histogram("test_histogram", 0.25)
             
             assert.equals(0.25, ngx.shared.metrics:get("test_histogram_sum"))
@@ -105,7 +105,7 @@ describe("metrics module", function()
         end)
         
         it("should observe histogram value with labels", function()
-            metrics:register_histogram("test_histogram", "Test histogram", 
+            metrics:register_histogram("test_histogram", 
                 {method={"GET"}})
             metrics:observe_histogram("test_histogram", 0.15, {method="GET"})
             
@@ -119,7 +119,7 @@ describe("metrics module", function()
         end)
         
         it("should accumulate histogram values", function()
-            metrics:register_histogram("test_histogram", "Test histogram")
+            metrics:register_histogram("test_histogram")
             metrics:observe_histogram("test_histogram", 0.1)
             metrics:observe_histogram("test_histogram", 0.3)
             
@@ -146,13 +146,13 @@ describe("metrics module", function()
     
     describe("generate_prometheus", function()
         it("should generate valid Prometheus histogram output", function()
-            metrics:register_histogram("test_histogram", "Test histogram", {}, {0.1, 0.5, 1.0})
+            metrics:register_histogram("test_histogram", {}, {0.1, 0.5, 1.0})
             metrics:observe_histogram("test_histogram", 0.25)
             
             local output = metrics:generate_prometheus()
             
             assert.is_string(output)
-            assert.is_true(string.find(output, "# HELP test_histogram Test histogram") ~= nil)
+            assert.is_true(string.find(output, "# HELP test_histogram ") ~= nil)
             assert.is_true(string.find(output, "# TYPE test_histogram histogram") ~= nil)
             
             -- Check bucket outputs
@@ -168,7 +168,7 @@ describe("metrics module", function()
         end)
         
         it("should generate valid Prometheus counter output", function()
-            metrics:register_counter("test_counter", "Test counter", 
+            metrics:register_counter("test_counter", 
                 {method={"GET", "POST"}})
             metrics:inc_counter("test_counter", 5, {method="GET"})
             metrics:inc_counter("test_counter", 3, {method="POST"})
@@ -176,7 +176,7 @@ describe("metrics module", function()
             local output = metrics:generate_prometheus()
             
             assert.is_string(output)
-            assert.is_true(string.find(output, "# HELP test_counter Test counter") ~= nil)
+            assert.is_true(string.find(output, "# HELP test_counter ") ~= nil)
             assert.is_true(string.find(output, "# TYPE test_counter counter") ~= nil)
             assert.is_true(string.find(output, 'test_counter{method="GET"} 5') ~= nil)
             assert.is_true(string.find(output, 'test_counter{method="POST"} 3') ~= nil)
@@ -185,7 +185,7 @@ describe("metrics module", function()
     
     describe("get_summary", function()
         it("should return summary of all metrics", function()
-            metrics:register_histogram("test_histogram", "Test histogram")
+            metrics:register_histogram("test_histogram")
             metrics:observe_histogram("test_histogram", 2.5)
             
             local summary = metrics:get_summary()
@@ -197,7 +197,7 @@ describe("metrics module", function()
     
     describe("race condition handling", function()
         it("should handle concurrent histogram observations safely", function()
-            metrics:register_histogram("concurrent_histogram", "Test concurrent access")
+            metrics:register_histogram("concurrent_histogram")
             
             -- Simulate concurrent observations by calling observe multiple times
             -- Since we pre-initialize keys, all incr operations should be atomic
@@ -215,7 +215,7 @@ describe("metrics module", function()
         end)
         
         it("should handle concurrent observations with same labels", function()
-            metrics:register_histogram("labeled_histogram", "Test labeled concurrent access", 
+            metrics:register_histogram("labeled_histogram", 
                 {method={"GET"}})
             
             -- Multiple concurrent observations with same labels
@@ -233,7 +233,7 @@ describe("metrics module", function()
         end)
         
         it("should handle concurrent observations with different labels", function()
-            metrics:register_histogram("multi_label_histogram", "Test multi-label concurrent access",
+            metrics:register_histogram("multi_label_histogram",
                 {
                     method={"GET", "POST"},
                     status={"200", "404"}
@@ -267,7 +267,7 @@ describe("metrics module", function()
             -- If we didn't pre-initialize, this could cause issues
             
             -- First register and observe
-            metrics:register_histogram("consistency_test", "Test consistency")
+            metrics:register_histogram("consistency_test")
             metrics:observe_histogram("consistency_test", 1.0)
             
             -- Verify initial state
@@ -283,7 +283,7 @@ describe("metrics module", function()
         end)
         
         it("should handle rapid sequential observations", function()
-            metrics:register_histogram("rapid_test", "Test rapid observations")
+            metrics:register_histogram("rapid_test")
             
             -- Simulate rapid sequential calls that might happen in high-traffic scenarios
             local total_sum = 0
@@ -320,13 +320,13 @@ describe("metrics module", function()
     
     describe("register_counter", function()
         it("should register counter without labels", function()
-            metrics:register_counter("test_counter", "Test counter")
+            metrics:register_counter("test_counter")
             
             assert.equals(0, ngx.shared.metrics:get("test_counter"))
         end)
         
         it("should register counter with label values", function()
-            metrics:register_counter("test_counter", "Test counter", 
+            metrics:register_counter("test_counter", 
                 {method={"GET", "POST"}})
             
             assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET"))
@@ -334,7 +334,7 @@ describe("metrics module", function()
         end)
         
         it("should generate all label combinations for counters", function()
-            metrics:register_counter("test_counter", "Test counter", 
+            metrics:register_counter("test_counter", 
                 {method={"GET", "POST"}, status={"200", "404"}})
             
             -- Should create 4 combinations
@@ -347,21 +347,21 @@ describe("metrics module", function()
     
     describe("inc_counter", function()
         it("should increment counter without labels", function()
-            metrics:register_counter("test_counter", "Test counter")
+            metrics:register_counter("test_counter")
             metrics:inc_counter("test_counter")
             
             assert.equals(1, ngx.shared.metrics:get("test_counter"))
         end)
         
         it("should increment counter with custom value", function()
-            metrics:register_counter("test_counter", "Test counter")
+            metrics:register_counter("test_counter")
             metrics:inc_counter("test_counter", 5)
             
             assert.equals(5, ngx.shared.metrics:get("test_counter"))
         end)
         
         it("should increment counter with labels", function()
-            metrics:register_counter("test_counter", "Test counter", 
+            metrics:register_counter("test_counter", 
                 {method={"GET"}})
             metrics:inc_counter("test_counter", 3, {method="GET"})
             
@@ -369,7 +369,7 @@ describe("metrics module", function()
         end)
         
         it("should accumulate counter values", function()
-            metrics:register_counter("test_counter", "Test counter")
+            metrics:register_counter("test_counter")
             metrics:inc_counter("test_counter", 2)
             metrics:inc_counter("test_counter", 3)
             
@@ -383,7 +383,7 @@ describe("metrics module", function()
         end)
         
         it("should handle concurrent counter increments safely", function()
-            metrics:register_counter("concurrent_counter", "Test concurrent counter access")
+            metrics:register_counter("concurrent_counter")
             
             -- Simulate concurrent increments
             local increments = {1, 2, 3, 4, 5}
@@ -398,7 +398,7 @@ describe("metrics module", function()
         end)
         
         it("should handle concurrent counter increments with labels", function()
-            metrics:register_counter("labeled_counter", "Test labeled counter access", 
+            metrics:register_counter("labeled_counter", 
                 {method={"GET", "POST"}})
             
             -- Concurrent increments with different labels
@@ -415,7 +415,6 @@ describe("metrics module", function()
         it("should register composite metric with config table", function()
             metrics:register_composite({
                 name = "test_request",
-                help = "Test request metrics",
                 label_values = {
                     method = {"GET", "POST"}
                 },
@@ -445,7 +444,6 @@ describe("metrics module", function()
         it("should handle empty label_values in config", function()
             metrics:register_composite({
                 name = "empty_labels_test",
-                help = "Empty labels test metrics",
                 label_values = {}
             })
             
@@ -469,7 +467,6 @@ describe("metrics module", function()
         it("should observe composite success with labels", function()
             metrics:register_composite({
                 name = "test_request",
-                help = "Test request metrics",
                 label_values = {
                     method = {"GET"}
                 }
@@ -495,7 +492,6 @@ describe("metrics module", function()
         it("should increment composite failure with labels", function()
             metrics:register_composite({
                 name = "test_request",
-                help = "Test request metrics",
                 label_values = {
                     method = {"GET"}
                 }

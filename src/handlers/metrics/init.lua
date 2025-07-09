@@ -11,7 +11,6 @@ local metrics = Metrics.new(ngx.shared.metrics)
 
 metrics:register_composite({
   name = "upstream_request",
-  help = "Upstream request metrics",
   label_values = {
     method = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"},
     cache_state = {"hit", "miss", "stale"},
@@ -24,7 +23,6 @@ metrics:register_composite({
 
 metrics:register_composite({
   name = "tag_operation",
-  help = "Tag operation metrics",
   label_values = {
     operation = {"get", "set", "delete"}
   },
@@ -35,7 +33,6 @@ metrics:register_composite({
 
 metrics:register_composite({
   name = "cache_operation",
-  help = "Cache operation metrics",
   label_values = {
     operation = {"get", "set", "delete"},
     cache_name = {"default", "custom"}
