@@ -1,14 +1,11 @@
--- Initialize Lua modules and shared resources
-local metrics = require "modules.metrics"
+
 local utils = require "modules.utils"
 local config = require "modules.config"
 local load_patterns_from_file = require "modules.router.utils".load_patterns_from_file
 local cjson = require "cjson"
 
--- Initialize metrics storage
-metrics.init()
-
 utils.debug('Initializing Sembo CDN...')
+
 
 -- Load route patterns from file and store in shared dict
 local routes_file = os.getenv("ROUTE_PATTERNS_FILE") or "/usr/local/openresty/nginx/lua/config/route-patterns.json"
@@ -30,6 +27,8 @@ if routes_config then
 else
     utils.error("Failed to load route patterns from file: " .. routes_file)
 end
+
+require "handlers.metrics.init"
 
 -- Print configuration during initialization
 local full_config = config.get_all()

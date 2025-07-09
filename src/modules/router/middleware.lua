@@ -1,12 +1,14 @@
+--- @alias RoutesConfig { patterns: { regex: string, name: string }[], fallback: string }
+
 local router = require "modules.router.utils"
 
 --- @class RouterMiddleware: Middleware
---- @field routes_config table
+--- @field routes_config RoutesConfig
 --- @field __index RouterMiddleware
 local RouterMiddleware = {}
 RouterMiddleware.__index = RouterMiddleware
 
---- @param routes_config table
+--- @param routes_config RoutesConfig
 --- @return RouterMiddleware
 function RouterMiddleware:new(routes_config)
     local instance = setmetatable({}, RouterMiddleware)
