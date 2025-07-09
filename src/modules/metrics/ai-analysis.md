@@ -1,7 +1,7 @@
 # AI Analysis: Metrics Module
 
 ## Module Overview
-Class-based Prometheus metrics module focused on histograms with race condition protection for OpenResty/nginx environments.
+Class-based Prometheus metrics module supporting both histograms and counters with race condition protection for OpenResty/nginx environments.
 
 ## Architecture Analysis
 
