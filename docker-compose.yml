@@ -16,7 +16,7 @@ services:
       LOG_LEVEL: debug
       ENV: development
       ROUTE_PATTERNS_FILE: /usr/local/openresty/nginx/lua/config/route-patterns.example.json
-      ENABLE_ACCESS_LOG: true  # Enable logging
+      ENABLE_ACCESS_LOG: false  # Enable logging
     volumes:
       - .:/workspace
     depends_on:
