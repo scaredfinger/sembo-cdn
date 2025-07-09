@@ -1,3 +1,8 @@
+---@class CounterConfig
+---@field help string
+---@field label_names string[]
+---@field label_values table<string, string[]>
+
 ---@class HistogramConfig
 ---@field help string
 ---@field label_names string[]
@@ -7,6 +12,7 @@
 ---@class Metrics
 ---@field metrics_dict table
 ---@field histograms table<string, HistogramConfig>
+---@field counters table<string, CounterConfig>
 local Metrics = {}
 Metrics.__index = Metrics
 
@@ -19,7 +25,8 @@ function Metrics.new(metrics_dict)
 
     local self = setmetatable({
         metrics_dict = metrics_dict,
-        histograms = {}
+        histograms = {},
+        counters = {}
     }, Metrics)
 
     return self
@@ -194,10 +201,76 @@ function Metrics:observe_histogram(name, value, labels)
     self.metrics_dict:incr(key .. "_bucket_inf", 1)
 end
 
+---@param name string
+---@param help string
+---@param label_names? string[]
+---@param label_values? table<string, string[]>
+function Metrics:register_counter(name, help, label_names, label_values)
+    label_names = label_names or {}
+    label_values = label_values or {}
+    
+    -- Generate all label combinations
+    local label_combinations = self:generate_label_combinations(label_names, label_values)
+    
+    self.counters[name] = {
+        help = help,
+        label_names = label_names,
+        label_values = label_values
+    }
+
+    -- Initialize all counter keys to 0
+    for _, labels in ipairs(label_combinations) do
+        local key = self:build_key(name, labels)
+        self.metrics_dict:set(key, 0)
+    end
+end
+
+---@param name string
+---@param value? number
+---@param labels? table<string, any>
+function Metrics:inc_counter(name, value, labels)
+    local counter_config = self.counters[name]
+    if not counter_config then
+        error("Counter not registered: " .. name)
+    end
+    
+    value = value or 1
+    local key = self:build_key(name, labels)
+    
+    -- Atomic increment
+    self.metrics_dict:incr(key, value)
+end
+
+-- ...existing code...
+
 ---@return string
 function Metrics:generate_prometheus()
     local output = {}
 
+    -- Generate counter metrics
+    for name, config in pairs(self.counters) do
+        table.insert(output, "# HELP " .. name .. " " .. config.help)
+        table.insert(output, "# TYPE " .. name .. " counter")
+
+        local keys = self.metrics_dict:get_keys()
+        for _, key in ipairs(keys) do
+            -- Match counter keys (not histogram keys with suffixes)
+            if string.match(key, "^" .. name .. ":") or key == name then
+                -- Make sure it's not a histogram key
+                if not (string.match(key, "_sum$") or string.match(key, "_count$") or string.match(key, "_bucket_")) then
+                    local value = self.metrics_dict:get(key)
+                    if value then
+                        local metric_line = self:format_prometheus_line(key, value)
+                        if metric_line then
+                            table.insert(output, metric_line)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Generate histogram metrics
     for name, config in pairs(self.histograms) do
         table.insert(output, "# HELP " .. name .. " " .. config.help)
         table.insert(output, "# TYPE " .. name .. " histogram")

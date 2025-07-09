@@ -1,11 +1,11 @@
 # Metrics Module
 
-A thread-safe Prometheus metrics module for OpenResty/nginx environments, designed specifically for histogram metrics with race condition protection.
+A thread-safe Prometheus metrics module for OpenResty/nginx environments, supporting both histogram and counter metrics with race condition protection.
 
 ## Features
 
 - **Thread-Safe**: Uses atomic operations to prevent race conditions in multi-worker environments
-- **Histogram Focus**: Specialized for histogram metrics with sum and count tracking
+- **Histogram & Counter Support**: Specialized for both histogram and counter metrics
 - **Label Support**: Full support for metric labels with automatic key generation
 - **Prometheus Compatible**: Generates standard Prometheus exposition format
 - **Memory Efficient**: Pre-initializes metrics to avoid runtime allocation issues
@@ -18,19 +18,36 @@ local Metrics = require "modules.metrics.index"
 -- Initialize with OpenResty shared dictionary
 local metrics = Metrics.new(ngx.shared.metrics)
 
+-- Register a counter with expected label combinations
+metrics:register_counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    {"method", "route"},
+    {
+        method={"GET", "POST", "PUT"},
+        route={"/api/users", "/api/orders", "/health"}
+    }
+)
+
 -- Register a histogram with expected label combinations
 metrics:register_histogram(
     "response_time_seconds",
     "HTTP response time in seconds",
     {"method", "route"},
     {
-        {method="GET", route="/api/users"},
-        {method="POST", route="/api/users"},
-        {method="GET", route="/api/health"}
-    }
+        method={"GET", "POST"},
+        route={"/api/users", "/api/health"}
+    },
+    {0.1, 0.5, 1.0, 2.5, 5.0}  -- custom buckets
 )
 
--- Record observations
+-- Increment counters
+metrics:inc_counter("http_requests_total", 1, {
+    method="GET", 
+    route="/api/users"
+})
+
+-- Record histogram observations
 metrics:observe_histogram("response_time_seconds", 0.125, {
     method="GET", 
     route="/api/users"
@@ -52,16 +69,57 @@ Creates a new metrics instance.
 
 **Returns:** Metrics instance or nil if dictionary unavailable
 
-### Methods
+### Counter Methods
 
-#### `metrics:register_histogram(name, help, label_names, label_combinations)`
+#### `metrics:register_counter(name, help, label_names, label_values)`
+Registers a counter metric with pre-defined label combinations.
+
+**Parameters:**
+- `name` (string): Metric name
+- `help` (string): Help text for Prometheus
+- `label_names` (optional): Array of label names
+- `label_values` (optional): Table of label value arrays
+
+**Example:**
+```lua
+metrics:register_counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    {"method", "status"},
+    {
+        method={"GET", "POST"},
+        status={"200", "404", "500"}
+    }
+)
+```
+
+#### `metrics:inc_counter(name, value, labels)`
+Increments a counter.
+
+**Parameters:**
+- `name` (string): Metric name
+- `value` (optional, default=1): Increment value
+- `labels` (optional): Table of label key-value pairs
+
+**Example:**
+```lua
+metrics:inc_counter("http_requests_total", 1, {
+    method="GET", 
+    status="200"
+})
+```
+
+### Histogram Methods
+
+#### `metrics:register_histogram(name, help, label_names, label_values, buckets)`
 Registers a histogram metric with pre-defined label combinations.
 
 **Parameters:**
 - `name` (string): Metric name
 - `help` (string): Help text for Prometheus
 - `label_names` (optional): Array of label names
-- `label_combinations` (optional): Array of label value combinations
+- `label_values` (optional): Table of label value arrays
+- `buckets` (optional): Array of bucket boundaries
 
 **Example:**
 ```lua
@@ -70,9 +128,10 @@ metrics:register_histogram(
     "Request duration in seconds",
     {"method", "status"},
     {
-        {method="GET", status="200"},
-        {method="POST", status="201"}
-    }
+        method={"GET", "POST"}, 
+        status={"200", "404"}
+    },
+    {0.1, 0.5, 1.0, 2.5, 5.0}
 )
 ```
 
@@ -123,20 +182,21 @@ This module prevents race conditions through:
 ### 1. Register Metrics Early
 ```lua
 -- Register all metrics during application startup
+metrics:register_counter("api_requests_total", "API requests", 
+    {"endpoint"}, {endpoint={"/users", "/orders"}})
+    
 metrics:register_histogram("api_response_time", "API response time", 
-    {"endpoint"}, {{endpoint="/users"}, {endpoint="/orders"}})
+    {"endpoint"}, {endpoint={"/users", "/orders"}})
 ```
 
 ### 2. Pre-define Label Combinations
 ```lua
 -- Define expected label combinations to avoid runtime allocation
-local label_combinations = {
-    {method="GET", route="/api/users"},
-    {method="POST", route="/api/users"},
-    {method="GET", route="/api/orders"}
-}
-metrics:register_histogram("request_time", "Request time", 
-    {"method", "route"}, label_combinations)
+local endpoints = {"/api/users", "/api/orders", "/health"}
+local methods = {"GET", "POST", "PUT", "DELETE"}
+
+metrics:register_counter("request_count", "Request count", 
+    {"method", "endpoint"}, {method=methods, endpoint=endpoints})
 ```
 
 ### 3. Use Consistent Label Names

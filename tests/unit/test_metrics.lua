@@ -166,6 +166,21 @@ describe("metrics module", function()
             assert.is_true(string.find(output, "test_histogram_sum 0.25") ~= nil)
             assert.is_true(string.find(output, "test_histogram_count 1") ~= nil)
         end)
+        
+        it("should generate valid Prometheus counter output", function()
+            metrics:register_counter("test_counter", "Test counter", 
+                {"method"}, {method={"GET", "POST"}})
+            metrics:inc_counter("test_counter", 5, {method="GET"})
+            metrics:inc_counter("test_counter", 3, {method="POST"})
+            
+            local output = metrics:generate_prometheus()
+            
+            assert.is_string(output)
+            assert.is_true(string.find(output, "# HELP test_counter Test counter") ~= nil)
+            assert.is_true(string.find(output, "# TYPE test_counter counter") ~= nil)
+            assert.is_true(string.find(output, 'test_counter{method="GET"} 5') ~= nil)
+            assert.is_true(string.find(output, 'test_counter{method="POST"} 3') ~= nil)
+        end)
     end)
     
     describe("get_summary", function()
@@ -300,6 +315,99 @@ describe("metrics module", function()
         it("should format +Inf bucket", function()
             local line = metrics:format_prometheus_bucket_line("test_metric_bucket_inf", 42)
             assert.equals('test_metric_bucket{le="+Inf"} 42', line)
+        end)
+    end)
+    
+    describe("register_counter", function()
+        it("should register counter without labels", function()
+            metrics:register_counter("test_counter", "Test counter")
+            
+            assert.equals(0, ngx.shared.metrics:get("test_counter"))
+        end)
+        
+        it("should register counter with label values", function()
+            metrics:register_counter("test_counter", "Test counter", 
+                {"method"}, {method={"GET", "POST"}})
+            
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET"))
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=POST"))
+        end)
+        
+        it("should generate all label combinations for counters", function()
+            metrics:register_counter("test_counter", "Test counter", 
+                {"method", "status"}, {method={"GET", "POST"}, status={"200", "404"}})
+            
+            -- Should create 4 combinations
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET,status=200"))
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=GET,status=404"))
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=POST,status=200"))
+            assert.equals(0, ngx.shared.metrics:get("test_counter:method=POST,status=404"))
+        end)
+    end)
+    
+    describe("inc_counter", function()
+        it("should increment counter without labels", function()
+            metrics:register_counter("test_counter", "Test counter")
+            metrics:inc_counter("test_counter")
+            
+            assert.equals(1, ngx.shared.metrics:get("test_counter"))
+        end)
+        
+        it("should increment counter with custom value", function()
+            metrics:register_counter("test_counter", "Test counter")
+            metrics:inc_counter("test_counter", 5)
+            
+            assert.equals(5, ngx.shared.metrics:get("test_counter"))
+        end)
+        
+        it("should increment counter with labels", function()
+            metrics:register_counter("test_counter", "Test counter", 
+                {"method"}, {method={"GET"}})
+            metrics:inc_counter("test_counter", 3, {method="GET"})
+            
+            assert.equals(3, ngx.shared.metrics:get("test_counter:method=GET"))
+        end)
+        
+        it("should accumulate counter values", function()
+            metrics:register_counter("test_counter", "Test counter")
+            metrics:inc_counter("test_counter", 2)
+            metrics:inc_counter("test_counter", 3)
+            
+            assert.equals(5, ngx.shared.metrics:get("test_counter"))
+        end)
+        
+        it("should fail for unregistered counter", function()
+            assert.has_error(function() 
+                metrics:inc_counter("nonexistent_counter")
+            end)
+        end)
+        
+        it("should handle concurrent counter increments safely", function()
+            metrics:register_counter("concurrent_counter", "Test concurrent counter access")
+            
+            -- Simulate concurrent increments
+            local increments = {1, 2, 3, 4, 5}
+            local expected_total = 0
+            
+            for _, value in ipairs(increments) do
+                metrics:inc_counter("concurrent_counter", value)
+                expected_total = expected_total + value
+            end
+            
+            assert.equals(expected_total, ngx.shared.metrics:get("concurrent_counter"))
+        end)
+        
+        it("should handle concurrent counter increments with labels", function()
+            metrics:register_counter("labeled_counter", "Test labeled counter access", 
+                {"method"}, {method={"GET", "POST"}})
+            
+            -- Concurrent increments with different labels
+            metrics:inc_counter("labeled_counter", 2, {method="GET"})
+            metrics:inc_counter("labeled_counter", 3, {method="POST"})
+            metrics:inc_counter("labeled_counter", 1, {method="GET"})
+            
+            assert.equals(3, ngx.shared.metrics:get("labeled_counter:method=GET"))
+            assert.equals(3, ngx.shared.metrics:get("labeled_counter:method=POST"))
         end)
     end)
 end)
