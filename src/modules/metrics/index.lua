@@ -1,3 +1,11 @@
+---@class CompositeMetricConfig
+---@field name string -- Base name for the composite metric
+---@field help string -- Help text for both histogram and counter
+---@field label_values? table<string, string[]> -- Label combinations
+---@field histogram_suffix? string -- Suffix for histogram (default: "_seconds")
+---@field counter_suffix? string -- Suffix for counter (default: "_total")
+---@field buckets? number[] -- Histogram buckets
+
 ---@class CounterConfig
 ---@field help string
 ---@field label_names string[] -- Deprecated, kept for compatibility
@@ -252,91 +260,19 @@ function Metrics:inc_counter(name, value, labels)
     self.metrics_dict:incr(key, value)
 end
 
--- Generate all combinations of label values for composite metrics
----@param label_values table<string, string[]>
----@return table[]
-function Metrics:generate_composite_label_combinations(label_values)
-    if not label_values or next(label_values) == nil then
-        return {{}}
-    end
+---@param config CompositeMetricConfig
+function Metrics:register_composite(config)
+    local label_values = config.label_values or {}
+    local histogram_suffix = config.histogram_suffix or "_seconds"
+    local counter_suffix = config.counter_suffix or "_total"
+    local buckets = config.buckets or {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0}
     
-    -- Extract label names from dictionary keys
-    local label_names = {}
-    for label_name, _ in pairs(label_values) do
-        table.insert(label_names, label_name)
-    end
-    table.sort(label_names) -- Sort for consistent ordering
-    
-    local function cartesian_product(arrays)
-        if #arrays == 0 then
-            return {{}}
-        end
-        
-        local result = {}
-        local first_array = arrays[1]
-        local rest_arrays = {}
-        for i = 2, #arrays do
-            table.insert(rest_arrays, arrays[i])
-        end
-        
-        local rest_combinations = cartesian_product(rest_arrays)
-        
-        for _, first_value in ipairs(first_array) do
-            for _, rest_combination in ipairs(rest_combinations) do
-                local combination = {first_value}
-                for _, value in ipairs(rest_combination) do
-                    table.insert(combination, value)
-                end
-                table.insert(result, combination)
-            end
-        end
-        
-        return result
-    end
-    
-    -- Build arrays for cartesian product
-    local value_arrays = {}
-    for _, label_name in ipairs(label_names) do
-        local values = label_values[label_name]
-        if not values then
-            error("No values provided for label: " .. label_name)
-        end
-        table.insert(value_arrays, values)
-    end
-    
-    local combinations = cartesian_product(value_arrays)
-    
-    -- Convert to label tables
-    local label_combinations = {}
-    for _, combination in ipairs(combinations) do
-        local labels = {}
-        for i, label_name in ipairs(label_names) do
-            labels[label_name] = combination[i]
-        end
-        table.insert(label_combinations, labels)
-    end
-    
-    return label_combinations
-end
-
----@param base_name string
----@param help string
----@param label_values? table<string, string[]>
----@param histogram_suffix? string
----@param counter_suffix? string
----@param buckets? number[]
-function Metrics:register_composite(base_name, help, label_values, histogram_suffix, counter_suffix, buckets)
-    label_values = label_values or {}
-    histogram_suffix = histogram_suffix or "_seconds"
-    counter_suffix = counter_suffix or "_total"
-    buckets = buckets or {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0}
-    
-    local histogram_name = "success_" .. base_name .. histogram_suffix
-    local counter_name = "failed_" .. base_name .. counter_suffix
+    local histogram_name = "success_" .. config.name .. histogram_suffix
+    local counter_name = "failed_" .. config.name .. counter_suffix
     
     -- Store composite configuration
-    self.composites[base_name] = {
-        help = help,
+    self.composites[config.name] = {
+        help = config.help,
         label_values = label_values,
         histogram_suffix = histogram_suffix,
         counter_suffix = counter_suffix,
@@ -344,8 +280,8 @@ function Metrics:register_composite(base_name, help, label_values, histogram_suf
     }
     
     -- Register the histogram and counter
-    self:register_histogram(histogram_name, help .. " (success)", label_values, buckets)
-    self:register_counter(counter_name, help .. " (failed)", label_values)
+    self:register_histogram(histogram_name, config.help .. " (success)", label_values, buckets)
+    self:register_counter(counter_name, config.help .. " (failed)", label_values)
 end
 
 ---@param base_name string

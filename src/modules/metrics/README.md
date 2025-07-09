@@ -174,29 +174,30 @@ metrics:observe_histogram("request_duration", 0.05, {
 
 Composite metrics allow you to register both a success histogram and failure counter with the same labels in a single call. This is particularly useful for tracking operation success/failure patterns.
 
-#### `metrics:register_composite(base_name, help, label_values, histogram_suffix, counter_suffix, buckets)`
-Registers both a success histogram and failure counter with shared labels.
+#### `metrics:register_composite(config)`
+Registers both a success histogram and failure counter with shared labels using a strongly typed configuration object.
 
 **Parameters:**
-- `base_name` (string): Base metric name (will be prefixed with "success_"/"failed_")
-- `help` (string): Help text for both metrics
-- `label_values` (optional): Table mapping label names to arrays of possible values
-- `histogram_suffix` (optional, default="_seconds"): Suffix for the histogram metric
-- `counter_suffix` (optional, default="_total"): Suffix for the counter metric  
-- `buckets` (optional): Array of histogram bucket boundaries
+- `config` (CompositeMetricConfig): Configuration object with the following fields:
+  - `name` (string): Base metric name (will be prefixed with "success_"/"failed_")
+  - `help` (string): Help text for both metrics
+  - `label_values` (optional): Table mapping label names to arrays of possible values
+  - `histogram_suffix` (optional, default="_seconds"): Suffix for the histogram metric
+  - `counter_suffix` (optional, default="_total"): Suffix for the counter metric  
+  - `buckets` (optional): Array of histogram bucket boundaries
 
 **Example:**
 ```lua
-metrics:register_composite(
-    "api_request",
-    "API request metrics",
-    {
-        method={"GET", "POST"},
-        status={"200", "404", "500"}
+metrics:register_composite({
+    name = "api_request",
+    help = "API request metrics",
+    label_values = {
+        method = {"GET", "POST"},
+        status = {"200", "404", "500"}
     },
-    "_duration_seconds",    -- Creates: success_api_request_duration_seconds
-    "_failures"             -- Creates: failed_api_request_failures
-)
+    histogram_suffix = "_duration_seconds",    -- Creates: success_api_request_duration_seconds
+    counter_suffix = "_failures"               -- Creates: failed_api_request_failures
+})
 ```
 
 #### `metrics:observe_composite_success(base_name, value, labels)`
