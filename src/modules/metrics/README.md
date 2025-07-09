@@ -20,15 +20,15 @@ local Metrics = require "modules.metrics.index"
 local metrics = Metrics.new(ngx.shared.metrics)
 
 -- Register composite metrics for common success/failure patterns
-metrics:register_composite(
-    "upstream_request",
-    "Upstream request metrics",
-    {
+metrics:register_composite({
+    name = "upstream_request",
+    help = "Upstream request metrics",
+    label_values = {
         method={"GET", "POST", "PUT"},
         route={"/api/users", "/api/orders", "/health"},
         cache_state={"hit", "miss", "stale"}
     }
-)
+})
 
 -- Register individual metrics
 metrics:register_counter(
@@ -63,7 +63,7 @@ metrics:observe_histogram("response_time_seconds", 0.125, {
     route="/api/users"
 })
 
--- Record metrics
+-- Record composite metrics
 metrics:observe_composite_success("upstream_request", 0.125, {
     method="GET", 
     route="/api/users",
@@ -195,8 +195,8 @@ metrics:register_composite({
         method = {"GET", "POST"},
         status = {"200", "404", "500"}
     },
-    histogram_suffix = "_duration_seconds",    -- Creates: success_api_request_duration_seconds
-    counter_suffix = "_failures"               -- Creates: failed_api_request_failures
+    histogram_suffix = "_duration_seconds",
+    counter_suffix = "_failures"
 })
 ```
 
@@ -232,7 +232,9 @@ metrics:inc_composite_failure("api_request", 1, {
 })
 ```
 
-### `metrics:generate_prometheus()`
+### Output Methods
+
+#### `metrics:generate_prometheus()`
 Generates Prometheus exposition format output.
 
 **Returns:** String containing Prometheus metrics
@@ -294,11 +296,20 @@ metrics:observe_histogram("response_time", 0.2, {method="POST"})
 ### 4. Use Composite Metrics for Success/Failure Patterns
 ```lua
 -- Register composite metrics for operations that can succeed or fail
-metrics:register_composite("database_query", "Database query metrics", 
-    {operation={"SELECT", "INSERT", "UPDATE"}, table={"users", "orders"}})
+metrics:register_composite({
+    name = "database_query",
+    help = "Database query metrics",
+    label_values = {
+        operation={"SELECT", "INSERT", "UPDATE"},
+        table={"users", "orders"}
+    }
+})
     
-metrics:register_composite("cache_operation", "Cache operation metrics",
-    {operation={"GET", "SET", "DELETE"}})
+metrics:register_composite({
+    name = "cache_operation",
+    help = "Cache operation metrics",
+    label_values = {operation={"GET", "SET", "DELETE"}}
+})
 
 -- Record operations
 metrics:observe_composite_success("database_query", 0.015, {operation="SELECT", table="users"})
@@ -329,13 +340,18 @@ ngx.say(metrics:generate_prometheus())
 local metrics = Metrics.new(ngx.shared.metrics)
 
 -- Register composite metrics during init
-metrics:register_composite("api_request", "API request metrics", 
-    {endpoint={"/api/users", "/api/orders"}, method={"GET", "POST"}})
+metrics:register_composite({
+    name = "api_request",
+    help = "API request metrics",
+    label_values = {
+        endpoint={"/api/users", "/api/orders"},
+        method={"GET", "POST"}
+    }
+})
 
 -- Use in request handlers
 local start_time = ngx.now()
 local success, result = pcall(function()
-    -- ... handle request ...
     return handle_api_request()
 end)
 

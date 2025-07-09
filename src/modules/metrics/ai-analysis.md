@@ -33,6 +33,7 @@ metric_name:label1=value1,label2=value2_count
 - LuaLS annotations for all functions
 - Proper class structure with `__index` metamethod
 - Nullable return types where appropriate
+- Private method annotations for internal functions
 
 ### Performance Characteristics
 - **O(1)** histogram observation (two atomic increments)
@@ -51,7 +52,6 @@ metric_name:label1=value1,label2=value2_count
 2. **Metric Cleanup**: No TTL or cleanup mechanism for old metrics
 3. **Memory Monitoring**: No built-in memory usage tracking
 4. **Batch Operations**: Could optimize multiple observations
-5. **Label Name Extraction**: Automatically extracts label names from `label_values` keys for cleaner API
 
 ### Integration Points
 - **Handler**: `/metrics` endpoint for Prometheus scraping
@@ -71,8 +71,7 @@ metric_name:label1=value1,label2=value2_count
 ### API Design Improvements
 
 #### Label Management Simplification
-- **Before**: Required separate `label_names` and `label_values` parameters
-- **After**: Automatically extracts label names from `label_values` dictionary keys
+- **Automatic Label Extraction**: Extracts label names from `label_values` dictionary keys
 - **Benefits**: 
   - Eliminates redundancy and potential mismatches
   - Cleaner API with fewer parameters
@@ -81,11 +80,14 @@ metric_name:label1=value1,label2=value2_count
 
 #### Method Signatures
 ```lua
--- Previous API
-metrics:register_histogram(name, help, label_names, label_values, buckets)
-metrics:register_counter(name, help, label_names, label_values)
-
--- Current API  
+-- Current API
 metrics:register_histogram(name, help, label_values, buckets)
 metrics:register_counter(name, help, label_values)
+metrics:register_composite(config)
 ```
+
+### Code Quality Improvements
+- **Removed Deprecated Fields**: Eliminated `label_names` fields from type definitions
+- **Private Method Marking**: Internal methods marked with `@private` annotation
+- **Cleaned Comments**: Removed implementation comments while preserving type annotations
+- **Streamlined Implementation**: Removed compatibility code and focused on core functionality

@@ -1,0 +1,1 @@
+--- @alias SharedDictionary { incr: function, set: function, get: function, get_keys: function }
