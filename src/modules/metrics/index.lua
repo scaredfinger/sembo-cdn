@@ -19,7 +19,7 @@
 ---@field buckets number[]
 
 ---@class Metrics
----@field metrics_dict table
+---@field metrics_dict SharedDictionary
 ---@field histograms table<string, HistogramConfig>
 ---@field counters table<string, CounterConfig>
 ---@field composites table<string, CompositeConfig>
@@ -118,10 +118,10 @@ function Metrics:build_key(name, labels)
 
     local parts = {}
     for k, v in pairs(labels) do
-        table.insert(parts, k .. "=" .. tostring(v))
+        table.insert(parts, k .. '="' .. tostring(v) .. '"')
     end
     table.sort(parts)
-    return name .. ":" .. table.concat(parts, ",")
+    return name .. "{" .. table.concat(parts, ",") .. "}"
 end
 
 ---@private
@@ -129,51 +129,22 @@ end
 ---@param value number
 ---@return string?
 function Metrics:format_prometheus_line(key, value)
-    local metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
-
-    if not metric_name then
+    if not key then
         return nil
     end
-
-    -- Check if this is a histogram sum or count metric
-    local histogram_suffix = ""
-    if string.match(key, "_sum$") then
-        histogram_suffix = "_sum"
-        -- Remove _sum from the key to parse labels correctly
-        key = string.gsub(key, "_sum$", "")
-        metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
-        metric_name = metric_name .. "_sum"
-    elseif string.match(key, "_count$") then
-        histogram_suffix = "_count"
-        -- Remove _count from the key to parse labels correctly
-        key = string.gsub(key, "_count$", "")
-        metric_name, labels_str = string.match(key, "^([^:]+):?(.*)$")
-        metric_name = metric_name .. "_count"
-    end
-
-    local formatted_line = metric_name
-
-    if labels_str and labels_str ~= "" then
-        local labels = {}
-        for label_pair in string.gmatch(labels_str, "[^,]+") do
-            local k, v = string.match(label_pair, "([^=]+)=(.+)")
-            if k and v then
-                table.insert(labels, k .. '="' .. v .. '"')
-            end
-        end
-
-        if #labels > 0 then
-            formatted_line = formatted_line .. "{" .. table.concat(labels, ",") .. "}"
-        end
-    end
-
-    return formatted_line .. " " .. value
+    
+    return key .. " " .. value
 end
 
 ---@param name string
 ---@param label_values? table<string, string[]>
 ---@param buckets? number[]
 function Metrics:register_histogram(name, label_values, buckets)
+    -- Check if already registered
+    if self.histograms[name] then
+        return
+    end
+    
     label_values = label_values or {}
     buckets = buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
 
@@ -185,14 +156,38 @@ function Metrics:register_histogram(name, label_values, buckets)
     }
 
     for _, labels in ipairs(label_combinations) do
-        local key = self:build_key(name, labels)
-        self.metrics_dict:set(key .. "_sum", 0)
-        self.metrics_dict:set(key .. "_count", 0)
+        local sum_key = self:build_key(name .. "_sum", labels)
+        local count_key = self:build_key(name .. "_count", labels)
+        
+        -- Only set if not already exists
+        if not self.metrics_dict:get(sum_key) then
+            self.metrics_dict:set(sum_key, 0)
+        end
+        if not self.metrics_dict:get(count_key) then
+            self.metrics_dict:set(count_key, 0)
+        end
 
         for _, bucket in ipairs(buckets) do
-            self.metrics_dict:set(key .. "_bucket_" .. tostring(bucket), 0)
+            local bucket_labels = {}
+            for k, v in pairs(labels) do
+                bucket_labels[k] = v
+            end
+            bucket_labels.le = tostring(bucket)
+            local bucket_key = self:build_key(name .. "_bucket", bucket_labels)
+            if not self.metrics_dict:get(bucket_key) then
+                self.metrics_dict:set(bucket_key, 0)
+            end
         end
-        self.metrics_dict:set(key .. "_bucket_inf", 0)
+        
+        local inf_labels = {}
+        for k, v in pairs(labels) do
+            inf_labels[k] = v
+        end
+        inf_labels.le = "+Inf"
+        local inf_key = self:build_key(name .. "_bucket", inf_labels)
+        if not self.metrics_dict:get(inf_key) then
+            self.metrics_dict:set(inf_key, 0)
+        end
     end
 end
 
@@ -205,25 +200,45 @@ function Metrics:observe_histogram(name, value, labels)
         error("Histogram not registered: " .. name)
     end
 
-    local key = self:build_key(name, labels)
-    local sum_key = key .. "_sum"
-    local count_key = key .. "_count"
+    local sum_key = self:build_key(name .. "_sum", labels)
+    local count_key = self:build_key(name .. "_count", labels)
 
     self.metrics_dict:incr(sum_key, value)
     self.metrics_dict:incr(count_key, 1)
 
     for _, bucket in ipairs(histogram_config.buckets) do
         if value <= bucket then
-            self.metrics_dict:incr(key .. "_bucket_" .. tostring(bucket), 1)
+            local bucket_labels = {}
+            if labels then
+                for k, v in pairs(labels) do
+                    bucket_labels[k] = v
+                end
+            end
+            bucket_labels.le = tostring(bucket)
+            local bucket_key = self:build_key(name .. "_bucket", bucket_labels)
+            self.metrics_dict:incr(bucket_key, 1)
         end
     end
 
-    self.metrics_dict:incr(key .. "_bucket_inf", 1)
+    local inf_labels = {}
+    if labels then
+        for k, v in pairs(labels) do
+            inf_labels[k] = v
+        end
+    end
+    inf_labels.le = "+Inf"
+    local inf_key = self:build_key(name .. "_bucket", inf_labels)
+    self.metrics_dict:incr(inf_key, 1)
 end
 
 ---@param name string
 ---@param label_values? table<string, string[]>
 function Metrics:register_counter(name, label_values)
+    -- Check if already registered
+    if self.counters[name] then
+        return
+    end
+    
     label_values = label_values or {}
 
     local label_combinations = self:generate_label_combinations(label_values)
@@ -234,7 +249,10 @@ function Metrics:register_counter(name, label_values)
 
     for _, labels in ipairs(label_combinations) do
         local key = self:build_key(name, labels)
-        self.metrics_dict:set(key, 0)
+        -- Only set if not already exists
+        if not self.metrics_dict:get(key) then
+            self.metrics_dict:set(key, 0)
+        end
     end
 end
 
@@ -255,6 +273,11 @@ end
 
 ---@param config CompositeMetricConfig
 function Metrics:register_composite(config)
+    -- Check if already registered
+    if self.composites[config.name] then
+        return
+    end
+    
     local label_values = config.label_values or {}
     local histogram_suffix = config.histogram_suffix or "_seconds"
     local counter_suffix = config.counter_suffix or "_total"
@@ -304,53 +327,23 @@ end
 function Metrics:generate_prometheus()
     local output = {}
 
-    for name, config in pairs(self.counters) do
+    for name, _ in pairs(self.counters) do
         table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " counter")
-
-        local keys = self.metrics_dict:get_keys()
-        for _, key in ipairs(keys) do
-            if string.match(key, "^" .. name .. ":") or key == name then
-                if not (string.match(key, "_sum$") or string.match(key, "_count$") or string.match(key, "_bucket_")) then
-                    local value = self.metrics_dict:get(key)
-                    if value then
-                        local metric_line = self:format_prometheus_line(key, value)
-                        if metric_line then
-                            table.insert(output, metric_line)
-                        end
-                    end
-                end
-            end
-        end
     end
 
-    for name, config in pairs(self.histograms) do
+    for name, _ in pairs(self.histograms) do
         table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " histogram")
+    end
 
-        local keys = self.metrics_dict:get_keys()
-
-        for _, key in ipairs(keys) do
-            if string.match(key, "^" .. name .. ".*_bucket_") then
-                local value = self.metrics_dict:get(key)
-                if value then
-                    local metric_line = self:format_prometheus_bucket_line(key, value)
-                    if metric_line then
-                        table.insert(output, metric_line)
-                    end
-                end
-            end
-        end
-
-        for _, key in ipairs(keys) do
-            if string.match(key, "^" .. name .. ".*_sum$") or string.match(key, "^" .. name .. ".*_count$") then
-                local value = self.metrics_dict:get(key)
-                if value then
-                    local metric_line = self:format_prometheus_line(key, value)
-                    if metric_line then
-                        table.insert(output, metric_line)
-                    end
-                end
+    local keys = self.metrics_dict:get_keys(0)
+    for _, key in ipairs(keys) do
+        local value = self.metrics_dict:get(key)
+        if value then
+            local line = self:format_prometheus_line(key, value)
+            if line then
+                table.insert(output, line)
             end
         end
     end
@@ -368,46 +361,6 @@ function Metrics:get_summary()
     end
 
     return summary
-end
-
----@private
----@param key string
----@param value number
----@return string?
-function Metrics:format_prometheus_bucket_line(key, value)
-    local base_key, bucket_str = string.match(key, "^(.*)_bucket_(.+)$")
-
-    if not base_key or not bucket_str then
-        return nil
-    end
-
-    local metric_name, labels_str = string.match(base_key, "^([^:]+):?(.*)$")
-
-    if not metric_name then
-        return nil
-    end
-
-    local formatted_line = metric_name .. "_bucket"
-
-    local labels = {}
-
-    if labels_str and labels_str ~= "" then
-        for label_pair in string.gmatch(labels_str, "[^,]+") do
-            local k, v = string.match(label_pair, "([^=]+)=(.+)")
-            if k and v then
-                table.insert(labels, k .. '="' .. v .. '"')
-            end
-        end
-    end
-
-    local le_value = bucket_str == "inf" and "+Inf" or bucket_str
-    table.insert(labels, 'le="' .. le_value .. '"')
-
-    if #labels > 0 then
-        formatted_line = formatted_line .. "{" .. table.concat(labels, ",") .. "}"
-    end
-
-    return formatted_line .. " " .. value
 end
 
 return Metrics
