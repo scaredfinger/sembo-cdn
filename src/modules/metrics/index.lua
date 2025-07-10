@@ -355,37 +355,6 @@ function Metrics:generate_prometheus()
         end
     end
 
-    for name, config in pairs(self.composites) do
-        table.insert(output, "# HELP " .. name .. " ")
-        table.insert(output, "# TYPE " .. name .. " histogram")
-
-        local keys = self.metrics_dict:get_keys()
-
-        for _, key in ipairs(keys) do
-            if string.match(key, "^" .. name .. ".*_bucket_") then
-                local value = self.metrics_dict:get(key)
-                if value then
-                    local metric_line = self:format_prometheus_bucket_line(key, value)
-                    if metric_line then
-                        table.insert(output, metric_line)
-                    end
-                end
-            end
-        end
-
-        for _, key in ipairs(keys) do
-            if string.match(key, "^" .. name .. ".*_sum$") or string.match(key, "^" .. name .. ".*_count$") then
-                local value = self.metrics_dict:get(key)
-                if value then
-                    local metric_line = self:format_prometheus_line(key, value)
-                    if metric_line then
-                        table.insert(output, metric_line)
-                    end
-                end
-            end
-        end
-    end
-
     return table.concat(output, "\n") .. "\n"
 end
 
