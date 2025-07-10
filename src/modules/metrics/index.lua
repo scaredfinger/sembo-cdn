@@ -71,10 +71,18 @@ function Metrics:observe_histogram(name, value, labels)
     end
 
     local sum_key = self:_build_key(name .. "_sum", labels)
-    self.metrics_dict:incr(sum_key, value)
+    if not self.metrics_dict:get(sum_key) then
+        self.log_error("Histogram sum key not found: " .. sum_key)
+    else
+        self.metrics_dict:incr(sum_key, value)
+    end
 
     local count_key = self:_build_key(name .. "_count", labels)
-    self.metrics_dict:incr(count_key, 1)
+    if not self.metrics_dict:get(count_key) then
+        self.log_error("Histogram count key not found: " .. count_key)
+    else
+        self.metrics_dict:incr(count_key, 1)
+    end
 
     for _, bucket in ipairs(histogram_config.buckets) do
         if value <= bucket then
@@ -86,7 +94,11 @@ function Metrics:observe_histogram(name, value, labels)
             end
             bucket_labels.le = tostring(bucket)
             local bucket_key = self:_build_key(name .. "_bucket", bucket_labels)
-            self.metrics_dict:incr(bucket_key, 1)
+            if not self.metrics_dict:get(bucket_key) then
+                self.log_error("Histogram bucket key not found: " .. bucket_key)
+            else
+                self.metrics_dict:incr(bucket_key, 1)
+            end
         end
     end
 
@@ -143,7 +155,11 @@ function Metrics:inc_counter(name, value, labels)
     value = value or 1
     local key = self:_build_key(name, labels)
 
-    self.metrics_dict:incr(key, value)
+    if not self.metrics_dict:get(key) then
+        self.log_error("Counter key not found: " .. key)
+    else
+        self.metrics_dict:incr(key, value)
+    end
 end
 
 ---@param config CompositeMetricConfig

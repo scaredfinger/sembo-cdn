@@ -5,6 +5,11 @@
   },
   "response": {
     "status": 200,
+    "delayDistribution": {
+        "type": "lognormal",
+        "median": 100,
+        "sigma": 0.4
+    },
     "jsonBody": {
       "id": "luxury-resort",
       "name": "Luxury Beach Resort",
