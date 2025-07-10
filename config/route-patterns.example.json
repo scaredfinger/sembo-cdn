@@ -3,18 +3,6 @@
     {
       "regex": "^/hotel/([^/]+)$",
       "name": "hotel/[name]"
-    },
-    {
-      "regex": "^/hotel/([^/]+)/rooms$",
-      "name": "hotel/[name]/rooms"
-    },
-    {
-      "regex": "^/hotel/([^/]+)/rooms/([^/]+)$",
-      "name": "hotel/[name]/rooms/[id]"
-    },
-    {
-      "regex": "^/health$",
-      "name": "health"
     }
   ],
   "fallback": "unknown"
