@@ -23,24 +23,29 @@
 ---@field histograms table<string, HistogramConfig>
 ---@field counters table<string, CounterConfig>
 ---@field composites table<string, CompositeConfig>
+---@field log_error fun(msg: string, ...: any)
+---@field __index Metrics
 local Metrics = {}
 Metrics.__index = Metrics
 
 ---@param metrics_dict SharedDictionary
+---@param log_error fun(msg: string, ...: any)
 ---@return Metrics
-function Metrics.new(metrics_dict)
+function Metrics.new(metrics_dict, log_error)
     if not metrics_dict then
+        log_error("Metrics shared dictionary not available")
         error("Metrics shared dictionary not available")
     end
 
-    local self = setmetatable({
+    local instance = setmetatable({
         metrics_dict = metrics_dict,
         histograms = {},
         counters = {},
-        composites = {}
+        composites = {},
+        log_error = log_error
     }, Metrics)
 
-    return self
+    return instance
 end
 
 ---@param base_name string
@@ -49,7 +54,7 @@ end
 function Metrics:observe_composite_success(base_name, value, labels)
     local composite_config = self.composites[base_name]
     if not composite_config then
-        error("Composite metric not registered: " .. base_name)
+        self.log_error("Composite metric not registered: " .. base_name)
     end
 
     local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
@@ -62,7 +67,7 @@ end
 function Metrics:observe_histogram(name, value, labels)
     local histogram_config = self.histograms[name]
     if not histogram_config then
-        error("Histogram not registered: " .. name)
+        self.log_error("Histogram not registered: " .. name)
     end
 
     local sum_key = self:_build_key(name .. "_sum", labels)
@@ -119,7 +124,7 @@ end
 function Metrics:inc_composite_failure(base_name, value, labels)
     local composite_config = self.composites[base_name]
     if not composite_config then
-        error("Composite metric not registered: " .. base_name)
+        self.log_error("Composite metric not registered: " .. base_name)
     end
 
     local counter_name = "failed_" .. base_name .. composite_config.counter_suffix
@@ -132,7 +137,7 @@ end
 function Metrics:inc_counter(name, value, labels)
     local counter_config = self.counters[name]
     if not counter_config then
-        error("Counter not registered: " .. name)
+        self.log_error("Counter not registered: " .. name)
     end
 
     value = value or 1
@@ -267,7 +272,7 @@ function Metrics:_generate_label_combinations(label_values)
     for _, label_name in ipairs(label_names) do
         local values = label_values[label_name]
         if not values then
-            error("No values provided for label: " .. label_name)
+            self.log_error("No values provided for label: " .. label_name)
         end
         table.insert(value_arrays, values)
     end
