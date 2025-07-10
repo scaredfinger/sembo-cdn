@@ -201,9 +201,9 @@ function Metrics:observe_histogram(name, value, labels)
     end
 
     local sum_key = self:build_key(name .. "_sum", labels)
-    local count_key = self:build_key(name .. "_count", labels)
-
     self.metrics_dict:incr(sum_key, value)
+
+    local count_key = self:build_key(name .. "_count", labels)
     self.metrics_dict:incr(count_key, 1)
 
     for _, bucket in ipairs(histogram_config.buckets) do
