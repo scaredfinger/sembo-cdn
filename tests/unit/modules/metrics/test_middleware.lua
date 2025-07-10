@@ -45,7 +45,7 @@ describe('MetricsMiddleware', function()
         
         metrics = Metrics.new(mock_shared_dict)
         mock_now = spy.new(function() return 1000.0 end)
-        middleware = MetricsMiddleware:new(metrics, "test_operation", mock_now)
+        middleware = MetricsMiddleware:new(metrics, "test_operation", mock_now, function() return {} end)
         
         mock_request = { path = "/test" }
         mock_response = { status = 200, body = "OK" }
@@ -62,11 +62,6 @@ describe('MetricsMiddleware', function()
             assert.equals(metrics, middleware.metrics)
             assert.equals("test_operation", middleware.metric_name)
             assert.equals(mock_now, middleware.now)
-        end)
-        
-        it('should use ngx.now as default time function', function()
-            local default_middleware = MetricsMiddleware:new(metrics, "test", nil)
-            assert.equals(ngx.now, default_middleware.now)
         end)
     end)
     

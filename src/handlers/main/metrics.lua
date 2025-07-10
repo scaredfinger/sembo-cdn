@@ -10,9 +10,9 @@ local instance = MetricsMiddleware:new(
     ngx.now,
     function (request, response)
         return {
+            cache_state = (response and response.locals and response.locals.cache_status) or 'miss',
             method = request.method,
             route = (response and response.locals and response.locals.route) or routes_config.fallback,
-            cache_state = (response and response.locals and response.locals.cache_status) or 'miss',
         }
     end
 )

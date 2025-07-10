@@ -9,14 +9,14 @@ MetricsMiddleware.__index = MetricsMiddleware
 
 --- @param metrics Metrics
 --- @param metric_name string
---- @param now? fun(): number
+--- @param now fun(): number
 --- @param get_labels fun(request: Request, response: Response): table<string, string>
 --- @return MetricsMiddleware
 function MetricsMiddleware:new(metrics, metric_name, now, get_labels)
     local instance = setmetatable({}, MetricsMiddleware)
     instance.metrics = metrics
     instance.metric_name = metric_name
-    instance.now = now or ngx.now
+    instance.now = now
     instance.get_labels = get_labels
     return instance
 end
