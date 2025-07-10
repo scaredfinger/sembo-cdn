@@ -70,5 +70,20 @@ services:
     stdin_open: true
     command: ["sh", "-c", "while true; do sleep 3600; done"]
 
+  # Prometheus for metrics collection and monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ${HOST_WORKSPACE}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9091:9090"  # Expose Prometheus UI on a different port
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - proxy
+
 volumes:
   redis-dev-data:
