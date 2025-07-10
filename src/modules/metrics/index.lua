@@ -3,7 +3,7 @@
 ---@field label_values? table<string, string[]>
 ---@field histogram_suffix? string
 ---@field counter_suffix? string
----@field buckets? number[]
+---@field buckets number[]
 
 ---@class CounterConfig
 ---@field label_values table<string, string[]>
@@ -43,10 +43,189 @@ function Metrics.new(metrics_dict)
     return self
 end
 
+---@param base_name string
+---@param value number
+---@param labels? table<string, any>
+function Metrics:observe_composite_success(base_name, value, labels)
+    local composite_config = self.composites[base_name]
+    if not composite_config then
+        error("Composite metric not registered: " .. base_name)
+    end
+
+    local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
+    self:observe_histogram(histogram_name, value, labels)
+end
+
+---@param name string
+---@param value number
+---@param labels? table<string, any>
+function Metrics:observe_histogram(name, value, labels)
+    local histogram_config = self.histograms[name]
+    if not histogram_config then
+        error("Histogram not registered: " .. name)
+    end
+
+    local sum_key = self:_build_key(name .. "_sum", labels)
+    self.metrics_dict:incr(sum_key, value)
+
+    local count_key = self:_build_key(name .. "_count", labels)
+    self.metrics_dict:incr(count_key, 1)
+
+    for _, bucket in ipairs(histogram_config.buckets) do
+        if value <= bucket then
+            local bucket_labels = {}
+            if labels then
+                for k, v in pairs(labels) do
+                    bucket_labels[k] = v
+                end
+            end
+            bucket_labels.le = tostring(bucket)
+            local bucket_key = self:_build_key(name .. "_bucket", bucket_labels)
+            self.metrics_dict:incr(bucket_key, 1)
+        end
+    end
+
+    local inf_labels = {}
+    if labels then
+        for k, v in pairs(labels) do
+            inf_labels[k] = v
+        end
+    end
+    inf_labels.le = "+Inf"
+    local inf_key = self:_build_key(name .. "_bucket", inf_labels)
+    self.metrics_dict:incr(inf_key, 1)
+end
+
+---@private
+---@param name string
+---@param labels? table<string, any>
+---@return string
+function Metrics:_build_key(name, labels)
+    if not labels or next(labels) == nil then
+        return name
+    end
+
+    local parts = {}
+    for k, v in pairs(labels) do
+        table.insert(parts, k .. '="' .. tostring(v) .. '"')
+    end
+    table.sort(parts)
+    return name .. "{" .. table.concat(parts, ",") .. "}"
+end
+
+---@param base_name string
+---@param value? number
+---@param labels? table<string, any>
+function Metrics:inc_composite_failure(base_name, value, labels)
+    local composite_config = self.composites[base_name]
+    if not composite_config then
+        error("Composite metric not registered: " .. base_name)
+    end
+
+    local counter_name = "failed_" .. base_name .. composite_config.counter_suffix
+    self:inc_counter(counter_name, value, labels)
+end
+
+---@param name string
+---@param value? number
+---@param labels? table<string, any>
+function Metrics:inc_counter(name, value, labels)
+    local counter_config = self.counters[name]
+    if not counter_config then
+        error("Counter not registered: " .. name)
+    end
+
+    value = value or 1
+    local key = self:_build_key(name, labels)
+
+    self.metrics_dict:incr(key, value)
+end
+
+---@param config CompositeMetricConfig
+function Metrics:register_composite(config)
+    -- Check if already registered
+    if self.composites[config.name] then
+        return
+    end
+
+    local label_values = config.label_values or {}
+    local histogram_suffix = config.histogram_suffix or "_seconds"
+    local counter_suffix = config.counter_suffix or "_total"
+    local buckets = config.buckets
+
+    local histogram_name = "success_" .. config.name .. histogram_suffix
+    local counter_name = "failed_" .. config.name .. counter_suffix
+
+    self.composites[config.name] = {
+        label_values = label_values,
+        histogram_suffix = histogram_suffix,
+        counter_suffix = counter_suffix,
+        buckets = buckets
+    }
+
+    self:register_histogram(histogram_name, label_values, buckets)
+    self:register_counter(counter_name, label_values)
+end
+
+---@param name string
+---@param label_values? table<string, string[]>
+---@param buckets? number[]
+function Metrics:register_histogram(name, label_values, buckets)
+    -- Check if already registered
+    if self.histograms[name] then
+        return
+    end
+
+    label_values = label_values or {}
+    buckets = buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
+
+    local label_combinations = self:_generate_label_combinations(label_values)
+
+    self.histograms[name] = {
+        label_values = label_values,
+        buckets = buckets
+    }
+
+    for _, labels in ipairs(label_combinations) do
+        local sum_key = self:_build_key(name .. "_sum", labels)
+        local count_key = self:_build_key(name .. "_count", labels)
+
+        -- Only set if not already exists
+        if not self.metrics_dict:get(sum_key) then
+            self.metrics_dict:set(sum_key, 0)
+        end
+        if not self.metrics_dict:get(count_key) then
+            self.metrics_dict:set(count_key, 0)
+        end
+
+        for _, bucket in ipairs(buckets) do
+            local bucket_labels = {}
+            for k, v in pairs(labels) do
+                bucket_labels[k] = v
+            end
+            bucket_labels.le = tostring(bucket)
+            local bucket_key = self:_build_key(name .. "_bucket", bucket_labels)
+            if not self.metrics_dict:get(bucket_key) then
+                self.metrics_dict:set(bucket_key, 0)
+            end
+        end
+
+        local inf_labels = {}
+        for k, v in pairs(labels) do
+            inf_labels[k] = v
+        end
+        inf_labels.le = "+Inf"
+        local inf_key = self:_build_key(name .. "_bucket", inf_labels)
+        if not self.metrics_dict:get(inf_key) then
+            self.metrics_dict:set(inf_key, 0)
+        end
+    end
+end
+
 ---@private
 ---@param label_values table<string, string[]>
 ---@return table[]
-function Metrics:generate_label_combinations(label_values)
+function Metrics:_generate_label_combinations(label_values)
     if not label_values or next(label_values) == nil then
         return { {} }
     end
@@ -107,130 +286,6 @@ function Metrics:generate_label_combinations(label_values)
     return label_combinations
 end
 
----@private
----@param name string
----@param labels? table<string, any>
----@return string
-function Metrics:build_key(name, labels)
-    if not labels or next(labels) == nil then
-        return name
-    end
-
-    local parts = {}
-    for k, v in pairs(labels) do
-        table.insert(parts, k .. '="' .. tostring(v) .. '"')
-    end
-    table.sort(parts)
-    return name .. "{" .. table.concat(parts, ",") .. "}"
-end
-
----@private
----@param key string
----@param value number
----@return string?
-function Metrics:format_prometheus_line(key, value)
-    if not key then
-        return nil
-    end
-    
-    return key .. " " .. value
-end
-
----@param name string
----@param label_values? table<string, string[]>
----@param buckets? number[]
-function Metrics:register_histogram(name, label_values, buckets)
-    -- Check if already registered
-    if self.histograms[name] then
-        return
-    end
-    
-    label_values = label_values or {}
-    buckets = buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
-
-    local label_combinations = self:generate_label_combinations(label_values)
-
-    self.histograms[name] = {
-        label_values = label_values,
-        buckets = buckets
-    }
-
-    for _, labels in ipairs(label_combinations) do
-        local sum_key = self:build_key(name .. "_sum", labels)
-        local count_key = self:build_key(name .. "_count", labels)
-        
-        -- Only set if not already exists
-        if not self.metrics_dict:get(sum_key) then
-            self.metrics_dict:set(sum_key, 0)
-        end
-        if not self.metrics_dict:get(count_key) then
-            self.metrics_dict:set(count_key, 0)
-        end
-
-        for _, bucket in ipairs(buckets) do
-            local bucket_labels = {}
-            for k, v in pairs(labels) do
-                bucket_labels[k] = v
-            end
-            bucket_labels.le = tostring(bucket)
-            local bucket_key = self:build_key(name .. "_bucket", bucket_labels)
-            if not self.metrics_dict:get(bucket_key) then
-                self.metrics_dict:set(bucket_key, 0)
-            end
-        end
-        
-        local inf_labels = {}
-        for k, v in pairs(labels) do
-            inf_labels[k] = v
-        end
-        inf_labels.le = "+Inf"
-        local inf_key = self:build_key(name .. "_bucket", inf_labels)
-        if not self.metrics_dict:get(inf_key) then
-            self.metrics_dict:set(inf_key, 0)
-        end
-    end
-end
-
----@param name string
----@param value number
----@param labels? table<string, any>
-function Metrics:observe_histogram(name, value, labels)
-    local histogram_config = self.histograms[name]
-    if not histogram_config then
-        error("Histogram not registered: " .. name)
-    end
-
-    local sum_key = self:build_key(name .. "_sum", labels)
-    self.metrics_dict:incr(sum_key, value)
-
-    local count_key = self:build_key(name .. "_count", labels)
-    self.metrics_dict:incr(count_key, 1)
-
-    for _, bucket in ipairs(histogram_config.buckets) do
-        if value <= bucket then
-            local bucket_labels = {}
-            if labels then
-                for k, v in pairs(labels) do
-                    bucket_labels[k] = v
-                end
-            end
-            bucket_labels.le = tostring(bucket)
-            local bucket_key = self:build_key(name .. "_bucket", bucket_labels)
-            self.metrics_dict:incr(bucket_key, 1)
-        end
-    end
-
-    local inf_labels = {}
-    if labels then
-        for k, v in pairs(labels) do
-            inf_labels[k] = v
-        end
-    end
-    inf_labels.le = "+Inf"
-    local inf_key = self:build_key(name .. "_bucket", inf_labels)
-    self.metrics_dict:incr(inf_key, 1)
-end
-
 ---@param name string
 ---@param label_values? table<string, string[]>
 function Metrics:register_counter(name, label_values)
@@ -238,89 +293,22 @@ function Metrics:register_counter(name, label_values)
     if self.counters[name] then
         return
     end
-    
+
     label_values = label_values or {}
 
-    local label_combinations = self:generate_label_combinations(label_values)
+    local label_combinations = self:_generate_label_combinations(label_values)
 
     self.counters[name] = {
         label_values = label_values
     }
 
     for _, labels in ipairs(label_combinations) do
-        local key = self:build_key(name, labels)
+        local key = self:_build_key(name, labels)
         -- Only set if not already exists
         if not self.metrics_dict:get(key) then
             self.metrics_dict:set(key, 0)
         end
     end
-end
-
----@param name string
----@param value? number
----@param labels? table<string, any>
-function Metrics:inc_counter(name, value, labels)
-    local counter_config = self.counters[name]
-    if not counter_config then
-        error("Counter not registered: " .. name)
-    end
-
-    value = value or 1
-    local key = self:build_key(name, labels)
-
-    self.metrics_dict:incr(key, value)
-end
-
----@param config CompositeMetricConfig
-function Metrics:register_composite(config)
-    -- Check if already registered
-    if self.composites[config.name] then
-        return
-    end
-    
-    local label_values = config.label_values or {}
-    local histogram_suffix = config.histogram_suffix or "_seconds"
-    local counter_suffix = config.counter_suffix or "_total"
-    local buckets = config.buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
-
-    local histogram_name = "success_" .. config.name .. histogram_suffix
-    local counter_name = "failed_" .. config.name .. counter_suffix
-
-    self.composites[config.name] = {
-        label_values = label_values,
-        histogram_suffix = histogram_suffix,
-        counter_suffix = counter_suffix,
-        buckets = buckets
-    }
-
-    self:register_histogram(histogram_name, label_values, buckets)
-    self:register_counter(counter_name, label_values)
-end
-
----@param base_name string
----@param value number
----@param labels? table<string, any>
-function Metrics:observe_composite_success(base_name, value, labels)
-    local composite_config = self.composites[base_name]
-    if not composite_config then
-        error("Composite metric not registered: " .. base_name)
-    end
-
-    local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
-    self:observe_histogram(histogram_name, value, labels)
-end
-
----@param base_name string
----@param value? number
----@param labels? table<string, any>
-function Metrics:inc_composite_failure(base_name, value, labels)
-    local composite_config = self.composites[base_name]
-    if not composite_config then
-        error("Composite metric not registered: " .. base_name)
-    end
-
-    local counter_name = "failed_" .. base_name .. composite_config.counter_suffix
-    self:inc_counter(counter_name, value, labels)
 end
 
 ---@return string
@@ -341,7 +329,7 @@ function Metrics:generate_prometheus()
     for _, key in ipairs(keys) do
         local value = self.metrics_dict:get(key)
         if value then
-            local line = self:format_prometheus_line(key, value)
+            local line = self:_format_prometheus_line(key, value)
             if line then
                 table.insert(output, line)
             end
@@ -349,6 +337,18 @@ function Metrics:generate_prometheus()
     end
 
     return table.concat(output, "\n") .. "\n"
+end
+
+---@private
+---@param key string
+---@param value number
+---@return string?
+function Metrics:_format_prometheus_line(key, value)
+    if not key then
+        return nil
+    end
+
+    return key .. " " .. value
 end
 
 ---@return table<string, number>
