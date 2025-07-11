@@ -1,36 +1,36 @@
----@class CompositeMetricConfig
----@field name string
----@field label_values? table<string, string[]>
----@field histogram_suffix? string
----@field counter_suffix? string
----@field buckets number[]
+--- @class CompositeMetricConfig
+--- @field name string
+--- @field label_values? table<string, string[]>
+--- @field histogram_suffix? string
+--- @field counter_suffix? string
+--- @field buckets number[]
 
----@class CounterConfig
----@field label_values table<string, string[]>
+--- @class CounterConfig
+--- @field label_values table<string, string[]>
 
----@class HistogramConfig
----@field label_values table<string, string[]>
----@field buckets number[]
+--- @class HistogramConfig
+--- @field label_values table<string, string[]>
+--- @field buckets number[]
 
----@class CompositeConfig
----@field label_values table<string, string[]>
----@field histogram_suffix string
----@field counter_suffix string
----@field buckets number[]
+--- @class CompositeConfig
+--- @field label_values table<string, string[]>
+--- @field histogram_suffix string
+--- @field counter_suffix string
+--- @field buckets number[]
 
----@class Metrics
----@field metrics_dict SharedDictionary
----@field histograms table<string, HistogramConfig>
----@field counters table<string, CounterConfig>
----@field composites table<string, CompositeConfig>
----@field log_error fun(msg: string, ...: any)
----@field __index Metrics
+--- @class Metrics
+--- @field metrics_dict SharedDictionary
+--- @field histograms table<string, HistogramConfig>
+--- @field counters table<string, CounterConfig>
+--- @field composites table<string, CompositeConfig>
+--- @field log_error fun(msg: string, ...: any)
+--- @field __index Metrics
 local Metrics = {}
 Metrics.__index = Metrics
 
----@param metrics_dict SharedDictionary
----@param log_error fun(msg: string, ...: any)
----@return Metrics
+--- @param metrics_dict SharedDictionary
+--- @param log_error fun(msg: string, ...: any)
+--- @return Metrics
 function Metrics.new(metrics_dict, log_error)
     if not metrics_dict then
         log_error("Metrics shared dictionary not available")
@@ -48,9 +48,9 @@ function Metrics.new(metrics_dict, log_error)
     return instance
 end
 
----@param base_name string
----@param value number
----@param labels? table<string, any>
+--- @param base_name string
+--- @param value number
+--- @param labels? table<string, any>
 function Metrics:observe_composite_success(base_name, value, labels)
     local composite_config = self.composites[base_name]
     if not composite_config then
@@ -61,9 +61,9 @@ function Metrics:observe_composite_success(base_name, value, labels)
     self:observe_histogram(histogram_name, value, labels)
 end
 
----@param name string
----@param value number
----@param labels? table<string, any>
+--- @param name string
+--- @param value number
+--- @param labels? table<string, any>
 function Metrics:observe_histogram(name, value, labels)
     local histogram_config = self.histograms[name]
     if not histogram_config then
@@ -113,10 +113,10 @@ function Metrics:observe_histogram(name, value, labels)
     self.metrics_dict:incr(inf_key, 1)
 end
 
----@private
----@param name string
----@param labels? table<string, any>
----@return string
+--- @private
+--- @param name string
+--- @param labels? table<string, any>
+--- @return string
 function Metrics:_build_key(name, labels)
     if not labels or next(labels) == nil then
         return name
@@ -130,9 +130,9 @@ function Metrics:_build_key(name, labels)
     return name .. "{" .. table.concat(parts, ",") .. "}"
 end
 
----@param base_name string
----@param value? number
----@param labels? table<string, any>
+--- @param base_name string
+--- @param value? number
+--- @param labels? table<string, any>
 function Metrics:inc_composite_failure(base_name, value, labels)
     local composite_config = self.composites[base_name]
     if not composite_config then
@@ -143,9 +143,9 @@ function Metrics:inc_composite_failure(base_name, value, labels)
     self:inc_counter(counter_name, value, labels)
 end
 
----@param name string
----@param value? number
----@param labels? table<string, any>
+--- @param name string
+--- @param value? number
+--- @param labels? table<string, any>
 function Metrics:inc_counter(name, value, labels)
     local counter_config = self.counters[name]
     if not counter_config then
@@ -162,7 +162,7 @@ function Metrics:inc_counter(name, value, labels)
     end
 end
 
----@param config CompositeMetricConfig
+--- @param config CompositeMetricConfig
 function Metrics:register_composite(config)
     -- Check if already registered
     if self.composites[config.name] then
@@ -188,9 +188,9 @@ function Metrics:register_composite(config)
     self:register_counter(counter_name, label_values)
 end
 
----@param name string
----@param label_values? table<string, string[]>
----@param buckets? number[]
+--- @param name string
+--- @param label_values? table<string, string[]>
+--- @param buckets? number[]
 function Metrics:register_histogram(name, label_values, buckets)
     -- Check if already registered
     if self.histograms[name] then
@@ -243,9 +243,9 @@ function Metrics:register_histogram(name, label_values, buckets)
     end
 end
 
----@private
----@param label_values table<string, string[]>
----@return table[]
+--- @private
+--- @param label_values table<string, string[]>
+--- @return table[]
 function Metrics:_generate_label_combinations(label_values)
     if not label_values or next(label_values) == nil then
         return { {} }
@@ -307,8 +307,8 @@ function Metrics:_generate_label_combinations(label_values)
     return label_combinations
 end
 
----@param name string
----@param label_values? table<string, string[]>
+--- @param name string
+--- @param label_values? table<string, string[]>
 function Metrics:register_counter(name, label_values)
     -- Check if already registered
     if self.counters[name] then
@@ -332,7 +332,7 @@ function Metrics:register_counter(name, label_values)
     end
 end
 
----@return string
+--- @return string
 function Metrics:generate_prometheus()
     local output = {}
 
@@ -360,10 +360,10 @@ function Metrics:generate_prometheus()
     return table.concat(output, "\n") .. "\n"
 end
 
----@private
----@param key string
----@param value number
----@return string?
+--- @private
+--- @param key string
+--- @param value number
+--- @return string?
 function Metrics:_format_prometheus_line(key, value)
     if not key then
         return nil
@@ -372,7 +372,7 @@ function Metrics:_format_prometheus_line(key, value)
     return key .. " " .. value
 end
 
----@return table<string, number>
+--- @return table<string, number>
 function Metrics:get_summary()
     local summary = {}
     local keys = self.metrics_dict:get_keys()

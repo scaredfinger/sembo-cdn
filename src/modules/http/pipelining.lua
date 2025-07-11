@@ -1,6 +1,6 @@
----@param middlewares Middleware[] Array of middleware objects with execute method
----@param handler Handler
----@return HandlerFunction
+--- @param middlewares Middleware[] Array of middleware objects with execute method
+--- @param handler Handler
+--- @return HandlerFunction
 local function create_pipeline(middlewares, handler)
     local function build_chain(index)
         if index > #middlewares then
