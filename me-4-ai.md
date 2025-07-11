@@ -1,0 +1,1 @@
+I am a software developer with 25 years of experience. I expect super uber high quality code. I want no code comments. Self describing code is the best documentation, use explanatory variables, good symbol names and Emmy type annotations. I also want as little explanation as possible, none better that some. Only explain when explicitly asked.
