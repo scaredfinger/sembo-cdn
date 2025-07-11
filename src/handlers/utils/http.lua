@@ -1,4 +1,5 @@
 local Request = require "modules.http.request"
+local logs = require "utils.logs"
 
 local function get_incoming_request()
     --- @return string, table, string, string, number
@@ -45,7 +46,7 @@ local function get_incoming_request()
 end
 
 local cjson = require "cjson"
-local config = require "modules.config"
+local config = require "utils.config"
 
 --- @param response Response
 --- @return nil
@@ -56,11 +57,11 @@ local function send_response_to_client(response)
         ngx.header[key] = value
     end
 
-    if (config.get_log_level_value() <= config.get_log_levels().debug) then
+    logs.execute_with_log_level("debug", function()
         ngx.header['X-DEBUG'] = cjson.encode({
             locals = response.locals
         })
-    end
+    end)
 
     ngx.print(response.body)
 end

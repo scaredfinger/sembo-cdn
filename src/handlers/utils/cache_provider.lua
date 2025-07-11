@@ -1,6 +1,6 @@
 local RedisCacheProvider = require "modules.cache.providers.redis_cache_provider"
 
-local config = require "modules.config"
+local config = require "utils.config"
 local redis_config = config.get_redis_config()
 
 local function open_connection()

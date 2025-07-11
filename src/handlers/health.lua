@@ -1,5 +1,5 @@
 local cjson = require "cjson"
-local config = require "modules.config"
+local config = require "utils.config"
 local http = require "resty.http"
 local redis = require("resty.redis")
 

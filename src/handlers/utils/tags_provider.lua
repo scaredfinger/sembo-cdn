@@ -1,6 +1,6 @@
 local RedisTagsProvider = require "modules.surrogate.providers.redis_tags_provider"
 
-local config = require "modules.config"
+local config = require "utils.config"
 
 local redis_config = config.get_redis_config()
 
