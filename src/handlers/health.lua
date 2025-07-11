@@ -3,16 +3,13 @@ local config = require "utils.config"
 local http = require "resty.http"
 local redis = require("resty.redis")
 
--- Set content type
 ngx.header["Content-Type"] = "application/json"
 
--- Check Redis health
 local redis_client = redis:new()
 local redis_config = config.get_redis_config()
 redis_client:set_timeout(redis_config.timeout)
 local connection_established, connection_error = redis_client:connect(redis_config.host, redis_config.port)
 
--- Perform Redis health check
 local redis_healthy = false
 local redis_status = "Unknown"
 local redis_stats = {}
@@ -23,10 +20,8 @@ if connection_established then
         redis_healthy = true
         redis_status = "Connected and responsive"
         
-        -- Get Redis statistics
         local info_result, info_error = redis_client:info("memory")
         if info_result then
-            -- Parse memory info
             local used_memory = info_result:match("used_memory:(%d+)")
             local used_memory_human = info_result:match("used_memory_human:([%w%.]+)")
             local maxmemory = info_result:match("maxmemory:(%d+)")
@@ -48,14 +43,12 @@ else
     redis_stats = { connected = false, error = connection_error or "unknown error" }
 end
 
--- Check backend health
 local backend_config = config.get_backend_config()
 local backend_host = backend_config.host
 local backend_port = backend_config.port
 local backend_healthy = true
 local backend_status = "No health check configured"
 
--- Perform actual backend health check if healthcheck_path is defined
 if backend_config.healthcheck_path and backend_config.healthcheck_path ~= "" then
     local httpc = http.new()
     local backend_url = "http://" .. backend_host .. ":" .. backend_port .. backend_config.healthcheck_path
@@ -72,7 +65,6 @@ if backend_config.healthcheck_path and backend_config.healthcheck_path ~= "" the
         backend_healthy = false
         backend_status = "Error connecting to backend: " .. (err or "unknown error")
     else
-        -- Consider 2xx status codes as healthy
         backend_healthy = res.status >= 200 and res.status < 300
         backend_status = "Status code: " .. res.status
     end
@@ -80,10 +72,8 @@ else
     backend_status = "Assumed healthy (no healthcheck path configured)"
 end
 
--- Overall health status
 local overall_healthy = redis_healthy and backend_healthy
 
--- Response data
 local health_data = {
     status = overall_healthy and "healthy" or "unhealthy",
     timestamp = ngx.time(),
@@ -108,7 +98,6 @@ local health_data = {
     }
 }
 
--- Set appropriate HTTP status
 if overall_healthy then
     ngx.status = 200
     ngx.say(cjson.encode(health_data))

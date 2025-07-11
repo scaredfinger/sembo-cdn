@@ -45,8 +45,6 @@ local function get_incoming_request()
     return incoming_request
 end
 
-local cjson = require "cjson"
-local config = require "utils.config"
 
 --- @param response Response
 --- @return nil
@@ -58,6 +56,7 @@ local function send_response_to_client(response)
     end
 
     logs.execute_with_log_level("debug", function()
+        local cjson = require "cjson"
         ngx.header['X-DEBUG'] = cjson.encode({
             locals = response.locals
         })

@@ -7,7 +7,6 @@ local cjson = require "cjson"
 logs.debug('Initializing Sembo CDN...')
 
 
--- Load route patterns from file and store in shared dict
 local routes_file = os.getenv("ROUTE_PATTERNS_FILE") or "/usr/local/openresty/nginx/lua/config/route-patterns.json"
 local routes_config = load_patterns_from_file(routes_file)
 
@@ -30,9 +29,7 @@ end
 
 require "handlers.metrics.init"
 
--- Print configuration during initialization
 local full_config = config.get_all()
-logs.info("Sembo CDN configuration: " .. cjson.encode(full_config))
+logs.debug("Sembo CDN configuration: " .. cjson.encode(full_config))
 
--- Log initialization
 logs.info("Sembo CDN initialized successfully")
