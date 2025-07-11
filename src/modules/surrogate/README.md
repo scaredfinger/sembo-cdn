@@ -1,16 +1,17 @@
 # Surrogate Key Middleware
 
-A tag-based cache invalidation system for bulk cache management and logical grouping of cache entries.
+A tag-based cache invalidation system enabling bulk cache management through logical grouping of cache entries.
 
-## Overview
+## Problem & Solution
 
-The Surrogate Key Middleware implements industry-standard cache tagging (surrogate keys) to enable bulk invalidation of related cache entries. This solves the common problem of needing to invalidate multiple cache entries when underlying data changes.
+**Problem**: Traditional caching only supports individual cache key invalidation, making it difficult to invalidate related cache entries when underlying data changes.
 
-## Problem Solved
+**Solution**: Surrogate keys (cache tags) allow grouping multiple cache entries under logical tags for bulk invalidation.
 
-**Before**: Individual cache key invalidation only
+### Before vs After
+
+**Before**: Individual invalidation
 ```bash
-# Need to invalidate each key individually
 curl -X DELETE /cache/key/cache:GET:example.com:/hotel/luxury-resort
 curl -X DELETE /cache/key/cache:GET:example.com:/hotel/luxury-resort/rooms
 curl -X DELETE /cache/key/cache:GET:example.com:/hotel/luxury-resort/amenities
@@ -18,238 +19,211 @@ curl -X DELETE /cache/key/cache:GET:example.com:/hotel/luxury-resort/amenities
 
 **After**: Tag-based bulk invalidation
 ```bash
-# Single operation invalidates all related entries
 curl -X DELETE /cache/tags/hotel:luxury-resort
 ```
 
-## Features
+## Key Features
 
-- **Automatic Tag Generation**: Tags created from response headers and route patterns
-- **Bulk Invalidation**: Single API call to clear multiple cache entries
-- **Redis Integration**: Efficient storage using Redis sets and hashes
+- **Automatic Tag Processing**: Extracts tags from response `Surrogate-Key` headers
+- **Bulk Invalidation**: Single API call clears multiple related cache entries
+- **Redis Integration**: Efficient storage using Redis sets and hash tables
 - **Zero Breaking Changes**: Works alongside existing cache middleware
-- **Performance Optimized**: Asynchronous tag operations with connection pooling
+- **Performance Optimized**: Asynchronous operations with connection pooling
+
+For detailed technical analysis, see [ai-analysis.md](ai-analysis.md).
 
 ## Architecture
 
-### Middleware Position
+### Middleware Integration
 ```
-Request Flow:
-Router → Cache → Surrogate → Upstream
-       ↓       ↓        ↓
-    Pattern  Cache   Tag Assignment
-   Detection Hit/Miss  & Storage
+Request → Cache → Router → Surrogate → Upstream → Response
 ```
+
+The surrogate middleware processes responses after caching to associate cache keys with tags.
 
 ### Data Model
 ```
-Tags → Cache Keys Mapping:
+Redis Tag Storage:
 surrogate:tag:hotel:luxury-resort → {
   "cache:GET:example.com:/hotel/luxury-resort",
-  "cache:GET:example.com:/hotel/luxury-resort/rooms"
+  "cache:GET:example.com:/hotel/luxury-resort/rooms",
+  "cache:GET:example.com:/hotel/luxury-resort/amenities"
 }
 
-Cache Key → Tags Mapping:
-surrogate:key:cache:GET:example.com:/hotel/luxury-resort → {
-  "tags": ["hotel:luxury-resort", "hotels:all"],
-  "timestamp": 1640995200,
-  "route": "hotel/[name]"
+Redis Key-to-Tags Mapping:
+cache:GET:example.com:/hotel/luxury-resort → {
+  "hotel:luxury-resort",
+  "pricing:2024-01",
+  "availability:current"
 }
 ```
 
 ## Usage
 
-### Automatic Tag Generation
+### Automatic Tag Processing
+The middleware automatically processes `Surrogate-Key` headers in responses:
 
-Tags are automatically generated from:
-
-1. **Route Patterns**
-```
-Route: hotel/[name] + Request: /hotel/luxury-resort
-→ Tags: ["hotel:luxury-resort", "hotels:all"]
-```
-
-2. **Response Headers**
-```
-Backend Response:
-Surrogate-Key: hotel:luxury-resort pricing:2024 availability:current
-→ Tags: ["hotel:luxury-resort", "pricing:2024", "availability:current"]
+```lua
+-- Backend response includes surrogate keys
+response.headers["Surrogate-Key"] = "hotel:luxury-resort pricing:2024-01"
+-- Middleware automatically associates cache key with these tags
 ```
 
-### Invalidation API
-
+### Bulk Invalidation API
 ```bash
-# Invalidate all entries for a specific hotel
-curl -X DELETE http://localhost:8080/cache/tags/hotel:luxury-resort
+# Invalidate all entries tagged with hotel:luxury-resort
+curl -X DELETE /cache/tags/hotel:luxury-resort
 
-# Invalidate all pricing data
-curl -X DELETE http://localhost:8080/cache/tags/pricing:2024
-
-# List all tags (admin)
-curl http://localhost:8080/cache/tags
-
-# View tag contents (debug)
-curl http://localhost:8080/cache/tags/hotel:luxury-resort
+# Response indicates number of entries invalidated
+# "Invalidated 15 cache entries for tag 'hotel:luxury-resort'"
 ```
 
-## Configuration
+### Tag Naming Conventions
+```
+Entity-based tags:
+- hotel:luxury-resort
+- user:12345
+- category:electronics
 
-### Environment Variables
+Time-based tags:
+- pricing:2024-01
+- availability:current
+- promotion:summer-sale
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SURROGATE_ENABLED` | `false` | Enable surrogate key functionality |
-| `SURROGATE_TAG_TTL` | `3600` | TTL for tag mappings (seconds) |
-| `SURROGATE_MAX_TAGS` | `10` | Maximum tags per cache entry |
-| `SURROGATE_AUTO_TAGS` | `true` | Auto-generate tags from route patterns |
-
-### Route Pattern Tags
-
-Extend existing route patterns with tag configuration:
-
-```json
-{
-  "patterns": [
-    {
-      "regex": "^/hotel/([^/]+)$",
-      "name": "hotel/[name]",
-      "tags": ["hotel:{1}", "hotels:all", "content:hotel"]
-    },
-    {
-      "regex": "^/api/v(\\d+)/search",
-      "name": "api/v[version]/search",
-      "tags": ["search:all", "api:v{1}"]
-    }
-  ]
-}
+Feature-based tags:
+- search-results
+- user-preferences
+- recommendations
 ```
 
-## Implementation Status
+## Implementation
 
-### Current Phase: Basic Infrastructure ✅
-- [x] Middleware skeleton with provider integration
-- [x] Unit test framework
-- [x] Documentation and architecture design
+### Middleware Setup
+The middleware is automatically configured in the main pipeline:
 
-### Next Phase: Tag Assignment
-- [ ] Response header parsing (`Surrogate-Key`, `Cache-Tags`)
-- [ ] Route pattern tag generation
-- [ ] Redis storage operations
-- [ ] Tag assignment during cache operations
+```lua
+-- handlers/main/surrogate.lua
+local SurrogateKeyMiddleware = require "modules.surrogate.middleware"
+local tags_provider = require "handlers.utils.tags_provider"
+local cache_key_strategy = require "modules.cache.key_strategy_host_path"
 
-### Future Phases
-- [ ] HTTP invalidation endpoints
-- [ ] Admin and debug interfaces
-- [ ] Advanced tag rules and configuration
-- [ ] Performance metrics and monitoring
-
-## Examples
-
-### Hotel Content Management
-```
-# Backend updates hotel information
-PUT /admin/hotels/luxury-resort
-
-# CDN invalidates all related cache entries
-POST /cache/invalidate
-{
-  "tags": ["hotel:luxury-resort"]
-}
-
-# Clears:
-# - /hotel/luxury-resort (hotel details)
-# - /hotel/luxury-resort/rooms (room listings)
-# - /hotel/luxury-resort/amenities (amenities)
-# - /search?location=beach (if hotel appears in search)
+return SurrogateKeyMiddleware:new(tags_provider, cache_key_strategy)
 ```
 
-### Pricing Updates
-```
-# Pricing system updates rates
-PUT /admin/pricing/2024
+### Backend Integration
+Backends should include `Surrogate-Key` headers in responses:
 
-# CDN invalidates all pricing-related content
-POST /cache/invalidate
-{
-  "tags": ["pricing:2024"]
-}
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: public, max-age=3600
+Surrogate-Key: hotel:luxury-resort pricing:2024-01 availability:current
 
-# Clears all cached responses containing 2024 pricing data
+{"name": "Luxury Resort", "price": 299, "available": true}
 ```
 
-### User-Specific Content
+### Manual Tag Operations
+```lua
+-- Get all cache keys for a tag
+local keys = tags_provider:get_keys_for_tag("hotel:luxury-resort")
+
+-- Add cache key to tag
+tags_provider:add_key_to_tag("cache:GET:example.com:/hotel/new-hotel", "hotel:new-hotel")
+
+-- Remove cache key from tag
+tags_provider:remove_key_from_tag("hotel:old-hotel", "cache:GET:example.com:/hotel/old-hotel")
+
+-- Delete entire tag and all associations
+tags_provider:del_by_tag("hotel:closed-hotel")
 ```
-# User preferences change
-PUT /users/123/preferences
 
-# CDN invalidates user-specific cached content
-POST /cache/invalidate
-{
-  "tags": ["user:123"]
-}
+## Performance Characteristics
 
-# Clears personalized search results, recommendations, etc.
+### Tag Operations
+- **Tag Assignment**: O(1) per tag per cache key
+- **Bulk Invalidation**: O(n) where n = number of tagged cache keys
+- **Memory Usage**: ~100 bytes per tag-key association
+
+### Redis Operations
+- **Tag Storage**: Redis sets for efficient membership operations
+- **Key Lookup**: Hash tables for reverse mapping
+- **Connection Pooling**: Shared Redis connections across operations
+
+## Best Practices
+
+### 1. Hierarchical Tag Structure
+```
+-- Good: Hierarchical organization
+hotel:luxury-resort
+hotel:luxury-resort:rooms
+hotel:luxury-resort:amenities
+
+-- Bad: Flat structure
+luxury-resort
+luxury-resort-rooms
+luxury-resort-amenities
 ```
 
-## Benefits
+### 2. Reasonable Tag Cardinality
+```
+-- Good: Limited, predictable tags
+hotel:*, category:*, region:*
 
-### Operational Efficiency
-- **Selective Invalidation**: Only clear what actually changed
-- **Bulk Operations**: Single command for complex invalidation scenarios
-- **Reduced Backend Load**: Avoid unnecessary cache misses
+-- Bad: High cardinality tags
+user:*, session:*, request:*
+```
 
-### Developer Experience
-- **Logical Grouping**: Cache management aligned with business logic
-- **Simplified Integration**: Automatic tag generation from existing patterns
-- **Debugging Support**: Clear visibility into tag relationships
+### 3. Consistent Tag Naming
+```
+-- Good: Consistent naming convention
+entity:identifier
+feature:state
+time:period
 
-### Performance Impact
-- **Minimal Overhead**: Asynchronous tag operations
-- **Efficient Storage**: Optimized Redis data structures
-- **Fast Invalidation**: Set-based operations for bulk clearing
+-- Bad: Inconsistent naming
+HotelLuxuryResort
+hotel_luxury_resort
+hotel-luxury-resort
+```
 
-## Testing
+### 4. Strategic Tag Usage
+```
+-- Tag for business logic changes
+Surrogate-Key: hotel:luxury-resort pricing:2024-01
 
-### Unit Tests
+-- Don't tag for request-specific data
+Surrogate-Key: user:12345 session:abc123  # Too granular
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Tags Not Working**
+- Check `Surrogate-Key` header format in backend responses
+- Verify Redis connectivity: `curl http://localhost:8080/health`
+- Ensure tags don't contain spaces or special characters
+
+**Invalidation Not Working**
+- Verify tag exists: check Redis for `surrogate:tag:your-tag`
+- Test invalidation endpoint: `curl -X DELETE /cache/tags/your-tag`
+- Check logs for Redis connection errors
+
+**Performance Issues**
+- Monitor tag cardinality to avoid too many keys per tag
+- Use Redis clustering for high-volume tag operations
+- Consider async invalidation for large tag sets
+
+### Debug Information
 ```bash
-# Run surrogate middleware tests
-busted tests/unit/modules/surrogate/ --verbose
+# Check tag associations in Redis
+redis-cli SMEMBERS surrogate:tag:hotel:luxury-resort
+
+# Check tags for a specific cache key
+redis-cli HGET surrogate:key:cache:GET:example.com:/hotel/luxury-resort tags
+
+# Monitor tag operations
+curl http://localhost:8080/metrics | grep tag_operation
 ```
 
-### Integration Tests
-```bash
-# Test with Redis (when implemented)
-busted tests/integration/modules/surrogate/ --verbose
-```
-
-### Manual Testing
-```bash
-# Test tag generation (development)
-curl -v http://localhost:8080/hotel/luxury-resort
-
-# Check assigned tags (when admin endpoints exist)
-curl http://localhost:8080/cache/tags
-```
-
-## Monitoring
-
-### Metrics (Planned)
-- `surrogate_tags_assigned_total`: Total tags assigned
-- `surrogate_invalidations_total`: Tag invalidation operations
-- `surrogate_tag_storage_bytes`: Memory usage for tag mappings
-- `surrogate_orphaned_tags_cleaned`: Automatic cleanup operations
-
-### Health Checks
-Tag functionality will be included in the existing health check endpoint:
-
-```json
-{
-  "services": {
-    "surrogate": {
-      "status": "healthy",
-      "tags_stored": 1234,
-      "last_cleanup": "2024-01-01T12:00:00Z"
-    }
-  }
-}
-```
+For detailed implementation analysis, see [ai-analysis.md](ai-analysis.md).

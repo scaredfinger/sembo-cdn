@@ -1,393 +1,262 @@
 # Metrics Module
 
-A thread-safe Prometheus metrics module for OpenResty/nginx environments, supporting both histogram and counter metrics with race condition protection.
+A thread-safe Prometheus metrics collection module for OpenResty environments, designed for high-performance applications with race condition protection.
 
-## Features
+## Key Features
 
-- **Thread-Safe**: Uses atomic operations to prevent race conditions in multi-worker environments
-- **Histogram & Counter Support**: Specialized for both histogram and counter metrics
-- **Label Support**: Full support for metric labels with automatic key generation
-- **Prometheus Compatible**: Generates standard Prometheus exposition format
-- **Memory Efficient**: Pre-initializes metrics to avoid runtime allocation issues
-- **Composite Metrics**: Register success and failure metrics together for convenience
+- **Thread-Safe**: Atomic operations prevent race conditions in multi-worker environments
+- **Prometheus Compatible**: Standard exposition format with automatic type annotations
+- **Flexible Labels**: Dynamic label combinations with pre-registration optimization
+- **Composite Metrics**: Success/failure patterns with single registration
+- **Memory Efficient**: Pre-initialization strategy avoids runtime allocation issues
 
 ## Quick Start
 
 ```lua
 local Metrics = require "modules.metrics.index"
-
--- Initialize with OpenResty shared dictionary
 local metrics = Metrics.new(ngx.shared.metrics)
 
--- Register composite metrics for common success/failure patterns
+-- Register composite metrics for request tracking
 metrics:register_composite({
-    name = "upstream_request",
-    help = "Upstream request metrics",
+    name = "api_request",
+    help = "API request performance metrics",
     label_values = {
-        method={"GET", "POST", "PUT"},
-        route={"/api/users", "/api/orders", "/health"},
-        cache_state={"hit", "miss", "stale"}
+        method = {"GET", "POST", "PUT", "DELETE"},
+        route = {"/users", "/orders", "/health"},
+        status = {"200", "404", "500"}
     }
 })
 
--- Register individual metrics
-metrics:register_counter(
-    "http_requests_total",
-    {
-        method={"GET", "POST", "PUT"},
-        route={"/api/users", "/api/orders", "/health"}
-    }
-)
-
--- Register a histogram with expected label combinations
-metrics:register_histogram(
-    "response_time_seconds",
-    {
-        method={"GET", "POST"},
-        route={"/api/users", "/api/health"}
-    },
-    {0.1, 0.5, 1.0, 2.5, 5.0}  -- custom buckets
-)
-
--- Increment counters
-metrics:inc_counter("http_requests_total", 1, {
-    method="GET", 
-    route="/api/users"
+-- Record successful requests
+metrics:observe_composite_success("api_request", 0.125, {
+    method="GET", route="/users", status="200"
 })
 
--- Record histogram observations
-metrics:observe_histogram("response_time_seconds", 0.125, {
-    method="GET", 
-    route="/api/users"
-})
-
--- Record composite metrics
-metrics:observe_composite_success("upstream_request", 0.125, {
-    method="GET", 
-    route="/api/users",
-    cache_state="hit"
-})
-
-metrics:inc_composite_failure("upstream_request", 1, {
-    method="POST", 
-    route="/api/orders",
-    cache_state="miss"
+-- Record failed requests
+metrics:inc_composite_failure("api_request", 1, {
+    method="POST", route="/orders", status="500"
 })
 
 -- Generate Prometheus output
-local output = metrics:generate_prometheus()
+local prometheus_output = metrics:generate_prometheus()
 ```
 
-## API Reference
+For detailed technical analysis, see [ai-analysis.md](ai-analysis.md).
 
-### Constructor
+## Core API
 
-#### `Metrics.new(metrics_dict)`
-Creates a new metrics instance.
-
-**Parameters:**
-- `metrics_dict`: OpenResty shared dictionary (e.g., `ngx.shared.metrics`)
-
-**Returns:** Metrics instance or nil if dictionary unavailable
-
-### Counter Methods
-
-#### `metrics:register_counter(name, label_values)`
-Registers a counter metric with pre-defined label combinations.
-
-**Parameters:**
-- `name` (string): Metric name
-- `label_values` (optional): Table mapping label names to arrays of possible values
-
-**Example:**
+### Initialization
 ```lua
-metrics:register_counter(
-    "http_requests_total",
-    {
-        method={"GET", "POST"},
-        status={"200", "404", "500"}
-    }
-)
+local Metrics = require "modules.metrics.index"
+local metrics = Metrics.new(ngx.shared.metrics)
 ```
 
-#### `metrics:inc_counter(name, value, labels)`
-Increments a counter.
+### Registration Methods
 
-**Parameters:**
-- `name` (string): Metric name
-- `value` (optional, default=1): Increment value
-- `labels` (optional): Table of label key-value pairs
+#### Composite Metrics (Recommended)
+Register both success histogram and failure counter with shared labels:
 
-**Example:**
-```lua
-metrics:inc_counter("http_requests_total", 1, {
-    method="GET", 
-    status="200"
-})
-```
-
-### Histogram Methods
-
-#### `metrics:register_histogram(name, label_values, buckets)`
-Registers a histogram metric with pre-defined label combinations.
-
-**Parameters:**
-- `name` (string): Metric name
-- `label_values` (optional): Table mapping label names to arrays of possible values
-- `buckets` (optional): Array of bucket boundaries
-
-**Example:**
-```lua
-metrics:register_histogram(
-    "request_duration",
-    {
-        method={"GET", "POST"}, 
-        status={"200", "404"}
-    },
-    {0.1, 0.5, 1.0, 2.5, 5.0}
-)
-```
-
-#### `metrics:observe_histogram(name, value, labels)`
-Records a histogram observation.
-
-**Parameters:**
-- `name` (string): Metric name
-- `value` (number): Observed value
-- `labels` (optional): Table of label key-value pairs
-
-**Example:**
-```lua
-metrics:observe_histogram("request_duration", 0.05, {
-    method="GET", 
-    status="200"
-})
-```
-
-### Composite Methods
-
-Composite metrics allow you to register both a success histogram and failure counter with the same labels in a single call. This is particularly useful for tracking operation success/failure patterns.
-
-#### `metrics:register_composite(config)`
-Registers both a success histogram and failure counter with shared labels using a strongly typed configuration object.
-
-**Parameters:**
-- `config` (CompositeMetricConfig): Configuration object with the following fields:
-  - `name` (string): Base metric name (will be prefixed with "success_"/"failed_")
-  - `help` (string): Help text for both metrics
-  - `label_values` (optional): Table mapping label names to arrays of possible values
-  - `histogram_suffix` (optional, default="_seconds"): Suffix for the histogram metric
-  - `counter_suffix` (optional, default="_total"): Suffix for the counter metric  
-  - `buckets` (optional): Array of histogram bucket boundaries
-
-**Example:**
 ```lua
 metrics:register_composite({
-    name = "api_request",
-    help = "API request metrics",
+    name = "database_operation",
+    help = "Database operation metrics",
     label_values = {
-        method = {"GET", "POST"},
-        status = {"200", "404", "500"}
+        operation = {"SELECT", "INSERT", "UPDATE"},
+        table = {"users", "orders", "products"}
     },
     histogram_suffix = "_duration_seconds",
-    counter_suffix = "_failures"
+    counter_suffix = "_failures_total",
+    buckets = {0.001, 0.01, 0.1, 1.0, 10.0}
 })
 ```
 
-#### `metrics:observe_composite_success(base_name, value, labels)`
-Records a successful operation for the composite metric.
-
-**Parameters:**
-- `base_name` (string): Base metric name used in registration
-- `value` (number): Observed value for the histogram
-- `labels` (optional): Table of label key-value pairs
-
-**Example:**
+#### Individual Metrics
 ```lua
-metrics:observe_composite_success("api_request", 0.125, {
-    method="GET", 
-    status="200"
+-- Counter for simple counting
+metrics:register_counter("cache_operations_total", {
+    operation = {"GET", "SET", "DELETE"},
+    status = {"hit", "miss", "error"}
 })
+
+-- Histogram for timing measurements
+metrics:register_histogram("response_time_seconds", {
+    endpoint = {"/api/users", "/api/orders"},
+    method = {"GET", "POST"}
+}, {0.1, 0.5, 1.0, 2.5, 5.0})
 ```
 
-#### `metrics:inc_composite_failure(base_name, value, labels)`
-Records a failed operation for the composite metric.
+### Observation Methods
 
-**Parameters:**
-- `base_name` (string): Base metric name used in registration
-- `value` (optional, default=1): Increment value for the counter
-- `labels` (optional): Table of label key-value pairs
-
-**Example:**
+#### Composite Operations
 ```lua
-metrics:inc_composite_failure("api_request", 1, {
-    method="POST", 
-    status="500"
+-- Record successful operation
+metrics:observe_composite_success("database_operation", 0.025, {
+    operation="SELECT", table="users"
+})
+
+-- Record failed operation
+metrics:inc_composite_failure("database_operation", 1, {
+    operation="INSERT", table="orders"
 })
 ```
 
-### Output Methods
+#### Individual Metrics
+```lua
+-- Increment counter
+metrics:inc_counter("cache_operations_total", 1, {
+    operation="GET", status="hit"
+})
 
-#### `metrics:generate_prometheus()`
-Generates Prometheus exposition format output.
+-- Observe histogram value
+metrics:observe_histogram("response_time_seconds", 0.125, {
+    endpoint="/api/users", method="GET"
+})
+```
 
-**Returns:** String containing Prometheus metrics
+### Output Generation
+```lua
+-- Prometheus exposition format
+local prometheus_text = metrics:generate_prometheus()
 
-#### `metrics:get_summary()`
-Returns current metrics summary (useful for debugging).
-
-**Returns:** Table with all current metric values
+-- Debug summary
+local summary = metrics:get_summary()
+```
 
 ## Configuration
 
-Add to your `nginx.conf`:
-
+Add to your nginx configuration:
 ```nginx
 lua_shared_dict metrics 10m;
 ```
 
-## Race Condition Protection
+## Architecture
 
-This module prevents race conditions through:
+### Thread Safety
+- **Pre-initialization**: All metric keys created during registration
+- **Atomic Operations**: Only `ngx.shared.dict:incr()` used for observations
+- **No Check-Then-Set**: Eliminates race condition windows
 
-1. **Pre-initialization**: All metric keys are initialized to 0 during registration
-2. **Atomic Operations**: Only atomic `incr` operations are used for observations
-3. **No Fallback Logic**: Eliminates "check-then-set" patterns that cause races
+### Memory Management
+- **Shared Dictionary**: Efficient storage in nginx shared memory
+- **Label Serialization**: Consistent key generation from label combinations
+- **Garbage Collection**: Automatic cleanup of unused metrics
+
+### Performance
+- **O(1) Observations**: Constant time metric updates
+- **O(n) Key Building**: Linear with number of labels
+- **Optimized Buckets**: Default histogram buckets for common use cases
 
 ## Best Practices
 
-### 1. Register Metrics Early
+### 1. Pre-register Label Combinations
 ```lua
--- Register all metrics during application startup
-metrics:register_counter("api_requests_total", 
-    {endpoint={"/users", "/orders"}})
-    
-metrics:register_histogram("api_response_time", 
-    {endpoint={"/users", "/api/orders"}})
-```
-
-### 2. Pre-define Label Combinations
-```lua
--- Define expected label combinations to avoid runtime allocation
-local endpoints = {"/api/users", "/api/orders", "/health"}
+-- Define expected values during initialization
 local methods = {"GET", "POST", "PUT", "DELETE"}
+local routes = {"/api/users", "/api/orders", "/health"}
 
-metrics:register_counter("request_count", 
-    {method=methods, endpoint=endpoints})
+metrics:register_counter("requests_total", {
+    method = methods,
+    route = routes
+})
 ```
 
-### 3. Use Consistent Label Names
+### 2. Use Composite Metrics for Success/Failure Patterns
 ```lua
--- Good: consistent label names
-metrics:observe_histogram("response_time", 0.1, {method="GET", route="/api"})
-metrics:observe_histogram("response_time", 0.2, {method="POST", route="/api"})
-
--- Bad: inconsistent label names
-metrics:observe_histogram("response_time", 0.1, {http_method="GET"})
-metrics:observe_histogram("response_time", 0.2, {method="POST"})
-```
-
-### 4. Use Composite Metrics for Success/Failure Patterns
-```lua
--- Register composite metrics for operations that can succeed or fail
+-- Single registration for both success and failure tracking
 metrics:register_composite({
-    name = "database_query",
-    help = "Database query metrics",
+    name = "api_operation",
     label_values = {
-        operation={"SELECT", "INSERT", "UPDATE"},
-        table={"users", "orders"}
+        operation = {"user_create", "order_process", "payment_charge"}
     }
 })
-    
-metrics:register_composite({
-    name = "cache_operation",
-    help = "Cache operation metrics",
-    label_values = {operation={"GET", "SET", "DELETE"}}
-})
-
--- Record operations
-metrics:observe_composite_success("database_query", 0.015, {operation="SELECT", table="users"})
-metrics:inc_composite_failure("cache_operation", 1, {operation="GET"})
 ```
 
-## Performance Considerations
+### 3. Monitor Label Cardinality
+```lua
+-- Good: Limited combinations (3 × 4 = 12 metrics)
+{method = {"GET", "POST", "PUT"}, status = {"200", "404", "500", "503"}}
 
-- **Label Cardinality**: Keep label combinations reasonable (< 1000 per metric)
-- **Memory Usage**: Monitor shared dictionary usage with many metrics
-- **Observation Frequency**: Module is optimized for high-frequency observations
+-- Bad: High cardinality (avoid user IDs, timestamps, etc.)
+{method = methods, user_id = user_ids} -- Potentially thousands of metrics
+```
 
-## Integration
+### 4. Use Descriptive Names
+```lua
+-- Good: Clear, consistent naming
+metrics:register_histogram("http_request_duration_seconds", labels)
+metrics:register_counter("http_requests_total", labels)
+
+-- Bad: Ambiguous names
+metrics:register_histogram("time", labels)
+metrics:register_counter("count", labels)
+```
+
+## Integration Examples
 
 ### HTTP Handler
 ```lua
--- src/handlers/metrics/index.lua
-local Metrics = require "modules.metrics.index"
-local metrics = Metrics.new(ngx.shared.metrics)
-
+-- handlers/metrics/index.lua
+local metrics = require "handlers.metrics.instance"
 ngx.header["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
 ngx.say(metrics:generate_prometheus())
 ```
 
-### Application Integration
+### Middleware Integration
 ```lua
--- In your application handlers
-local metrics = Metrics.new(ngx.shared.metrics)
-
--- Register composite metrics during init
-metrics:register_composite({
-    name = "api_request",
-    help = "API request metrics",
-    label_values = {
-        endpoint={"/api/users", "/api/orders"},
-        method={"GET", "POST"}
-    }
-})
-
--- Use in request handlers
-local start_time = ngx.now()
-local success, result = pcall(function()
-    return handle_api_request()
-end)
-
-local duration = ngx.now() - start_time
-local labels = {endpoint="/api/users", method="GET"}
-
-if success then
-    metrics:observe_composite_success("api_request", duration, labels)
-else
-    metrics:inc_composite_failure("api_request", 1, labels)
+-- Metrics middleware for request tracking
+local function create_metrics_middleware(metrics, metric_name)
+    return function(request, next)
+        local start_time = ngx.now()
+        local success, response = pcall(next, request)
+        local duration = ngx.now() - start_time
+        
+        local labels = {
+            method = request.method,
+            route = response.locals.route or "unknown"
+        }
+        
+        if success and response.status < 400 then
+            metrics:observe_composite_success(metric_name, duration, labels)
+        else
+            metrics:inc_composite_failure(metric_name, 1, labels)
+        end
+        
+        return response
+    end
 end
 ```
-
-## Testing
-
-The module includes comprehensive test coverage:
-
-```bash
-# Run tests
-busted tests/unit/test_metrics.lua
-```
-
-Tests cover:
-- Basic functionality
-- Race condition scenarios
-- Label handling
-- Prometheus format generation
-- Error conditions
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Metrics not appearing**: Ensure metrics are registered before observation
-2. **Memory issues**: Monitor shared dictionary size and label cardinality
-3. **Race conditions**: Verify all label combinations are pre-registered
+**Metrics Not Appearing**
+- Verify metrics are registered before first observation
+- Check shared dictionary size: `ngx.shared.metrics:capacity()`
+- Ensure label combinations match registration
+
+**Memory Issues**
+- Monitor shared dictionary usage: `ngx.shared.metrics:free_space()`
+- Reduce label cardinality
+- Consider metric cleanup strategies
+
+**Performance Problems**
+- Pre-register all label combinations
+- Avoid high-cardinality labels
+- Use composite metrics for related operations
 
 ### Debug Information
 ```lua
--- Get current metrics summary
+-- Check current metrics
 local summary = metrics:get_summary()
 for key, value in pairs(summary) do
-    print(key, value)
+    ngx.log(ngx.INFO, "Metric: " .. key .. " = " .. value)
 end
+
+-- Monitor shared dictionary
+local capacity = ngx.shared.metrics:capacity()
+local free_space = ngx.shared.metrics:free_space()
+ngx.log(ngx.INFO, "Metrics memory: " .. (capacity - free_space) .. "/" .. capacity)
 ```
+
+For detailed implementation analysis, see [ai-analysis.md](ai-analysis.md).
