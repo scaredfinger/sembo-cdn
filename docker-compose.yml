@@ -30,6 +30,8 @@ services:
           path: ./nginx
         - action: rebuild
           path: ./config
+        - action: rebuild
+          path: ./Dockerfile
 
   # Redis service (for development/testing only)
   redis:
