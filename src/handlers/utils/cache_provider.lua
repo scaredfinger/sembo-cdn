@@ -23,5 +23,15 @@ local function close_connection(connection)
   return true
 end
 
-local cache_provider = RedisCacheProvider:new(open_connection, close_connection, ngx.null)
-return cache_provider
+local redis_cache_provider = RedisCacheProvider:new(open_connection, close_connection, ngx.null)
+
+local CacheProviderGzipDecorator = require "modules.cache.providers.cache_provider_gzip_decorator"
+local cache_provider_gzip_decorator = CacheProviderGzipDecorator:new(
+  redis_cache_provider,
+  ngx.deflate,
+  ngx.inflate,
+  ngx.encode_base64,
+  ngx.decode_base64
+)
+
+return cache_provider_gzip_decorator
