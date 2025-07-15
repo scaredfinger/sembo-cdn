@@ -24,16 +24,13 @@ local function close_connection(connection)
 end
 
 local redis_cache_provider = RedisCacheStorage:new(open_connection, close_connection, ngx.null)
--- return redis_cache_provider
 
 local CacheStorageCompressionDecorator = require "modules.cache.providers.cache_storage_compression_decorator"
 local br = require "modules.compression.br"
 local cache_provider_gzip_decorator = CacheStorageCompressionDecorator:new(
   redis_cache_provider,
   br.encode,
-  br.decode,
-  ngx.encode_base64,
-  ngx.decode_base64
+  br.decode
 )
 
 local JsonCacheProvider = require "modules.cache.providers.json_cache_provider"

@@ -1,5 +1,3 @@
-local cjson = require "cjson"
-
 --- @class RedisCacheStorage: CacheStorage
 --- @field open_connection fun(): table
 --- @field close_connection fun(connection: table): boolean
@@ -22,7 +20,7 @@ function RedisCacheProvider:new(open_connection, close_connection, null_value)
 end
 
 --- @param key string
---- @return any|nil
+--- @return string|nil
 function RedisCacheProvider:get(key)
     if not self:connect() then
         return nil
@@ -33,18 +31,17 @@ function RedisCacheProvider:get(key)
         self:disconnect()
         return nil
     end
-    
-    local result = nil
-    if value and value ~= self.null_value then
-        result = cjson.decode(value)
+
+    if value == self.null_value then
+        value = nil
     end
-    
+        
     self:disconnect()
-    return result
+    return value
 end
 
 --- @param key string
---- @param value any
+--- @param value string
 --- @param tts number|nil
 --- @param ttl number|nil
 --- @return boolean
@@ -53,12 +50,11 @@ function RedisCacheProvider:set(key, value, tts, ttl)
         return false
     end
     
-    local serialized = cjson.encode(value)
     local result
     if ttl then
-        result = self.redis:setex(key, ttl, serialized)
+        result = self.redis:setex(key, ttl, value)
     else
-        result = self.redis:set(key, serialized)
+        result = self.redis:set(key, value)
     end
     
     self:disconnect()
