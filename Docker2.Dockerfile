@@ -20,15 +20,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-RUN add-apt-repository ppa:pi-rho/dev
-
 # Install Lua and LuaRocks
-RUN apt-get update \
-    && apt-get install -y \
-        lua5.1 \
-        lua5.1-dev \
-        luarocks \
-        luajit \
+RUN apt-get update && apt-get install -y \
+    lua5.1 \
+    lua5.1-dev \
+    luarocks \
     && rm -rf /var/lib/apt/lists/*
 
 # Install OpenResty libraries for development (not runtime)
@@ -39,18 +35,4 @@ RUN luarocks install lua-resty-redis \
     && luarocks install luacheck \
     && luarocks install redis \
     && luarocks install lua-ffi-zlib
-
-RUN git clone https://github.com/sjnam/lua-resty-brotli.git \
-    && cp -r lua-resty-brotli/brotli /usr/local/share/lua/5.1/resty/brotli \
-    && rm -rf lua-resty-brotli
-
-RUN groupadd docker && usermod -aG docker ubuntu
-USER ubuntu
-
-# Set environment variables for Lua development
-ENV PATH="/usr/local/bin:$PATH"
-ENV LUA_PATH="/workspace/nginx/lua/?.lua;/workspace/nginx/lua/?/init.lua;;"
-ENV LUA_CPATH="/usr/lib/x86_64-linux-gnu/lua/5.1/?.so;/usr/local/lib/lua/5.1/?.so;;"
-
-# Set working directory
-WORKDIR /workspace
+    

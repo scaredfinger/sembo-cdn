@@ -4,6 +4,8 @@ FROM openresty/openresty:bookworm-fat
 RUN apt-get update && apt-get install -y \
     curl \
     git \
+    luarocks \
+    zlib1g-dev \
     libbrotli-dev \
     && git clone https://github.com/pintsized/lua-resty-http.git \
     && cp lua-resty-http/lib/resty/http* /usr/local/openresty/lualib/resty/ \
@@ -14,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN opm get sjnam/lua-resty-brotli
+RUN luarocks install lua-ffi-zlib
 
 # Copy configuration and Lua files
 COPY nginx/conf/default.conf /etc/nginx/conf.d/default.conf
