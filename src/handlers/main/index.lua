@@ -5,15 +5,17 @@ local create_pipeline = require "modules.http.pipelining"
 local metrics = require "handlers.main.metrics"
 local compression = require "handlers.main.compression"
 local cache = require "handlers.main.cache"
+local compressBeforeCaching = require "handlers.main.compression-before-caching"
 local router = require "handlers.main.router"
 local surrogate = require "handlers.main.surrogate"
 
 local execute = create_pipeline({
-    -- metrics,
+    metrics,
     compression,
-    -- cache,
-    -- router,
-    -- surrogate,
+    cache,
+    -- compressBeforeCaching,
+    router,
+    surrogate,
 }, upstream)
 
 local http = require "handlers.utils.http"

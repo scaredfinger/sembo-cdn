@@ -52,4 +52,28 @@ function Request:get_host()
   return self.host
 end
 
+--- Creates a shallow copy of the request.
+--- @return Request
+function Request:clone()
+  local headers_shallow_copy = {}
+  for k, v in pairs(self.headers) do
+    headers_shallow_copy[k] = v
+  end
+
+  local query_shallow_copy = {}
+  for k, v in pairs(self.query) do
+    query_shallow_copy[k] = v
+  end
+
+  return Request:new(
+    self.method,
+    self.path,
+    headers_shallow_copy,
+    self.body,
+    query_shallow_copy,
+    self.host,
+    self.timestamp
+  )
+end
+
 return Request

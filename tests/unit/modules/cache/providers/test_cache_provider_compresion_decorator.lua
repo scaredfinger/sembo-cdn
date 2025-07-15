@@ -3,7 +3,7 @@ local before_each = require('busted').before_each
 local it = require('busted').it
 local assert = require('luassert')
 
-local CacheProviderGzipDecorator = require("modules.cache.providers.cache_provider_gzip_decorator")
+local CacheProviderCompressionDecorator = require("modules.cache.providers.cache_provider_compression_decorator")
 
 describe("CacheProviderGzipDecorator", function()
     local mock_provider
@@ -49,7 +49,7 @@ describe("CacheProviderGzipDecorator", function()
             return nil
         end
 
-        decorator = CacheProviderGzipDecorator:new(
+        decorator = CacheProviderCompressionDecorator:new(
             mock_provider,
             mock_deflate,
             mock_inflate,
@@ -110,7 +110,7 @@ describe("CacheProviderGzipDecorator", function()
 
         it("should return false when compression fails", function()
             local failing_deflate = function(data) return nil end
-            local failing_decorator = CacheProviderGzipDecorator:new(
+            local failing_decorator = CacheProviderCompressionDecorator:new(
                 mock_provider,
                 failing_deflate,
                 mock_inflate,

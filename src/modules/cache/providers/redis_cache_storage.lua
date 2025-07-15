@@ -1,17 +1,17 @@
 local cjson = require "cjson"
 
---- @class RedisCacheProvider : CacheProvider
+--- @class RedisCacheStorage: CacheStorage
 --- @field open_connection fun(): table
 --- @field close_connection fun(connection: table): boolean
 --- @field null_value any
---- @field __index RedisCacheProvider
+--- @field __index RedisCacheStorage
 local RedisCacheProvider = {}
 RedisCacheProvider.__index = RedisCacheProvider
 
 --- @param open_connection fun(): table
 --- @param close_connection fun(connection: table): boolean
 --- @param null_value any
---- @return RedisCacheProvider
+--- @return RedisCacheStorage
 function RedisCacheProvider:new(open_connection, close_connection, null_value)
     local instance = setmetatable({}, RedisCacheProvider)
     instance.open_connection = open_connection
