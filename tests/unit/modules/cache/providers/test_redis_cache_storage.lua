@@ -4,7 +4,7 @@ local before_each = require('busted').before_each
 local it = require('busted').it
 local assert = require('luassert')
 
-local RedisCacheProvider = require "modules.cache.providers.redis_cache_provider"
+local RedisCacheProvider = require "modules.cache.providers.redis_cache_storage"
 
 -- Mock Redis client
 local MockRedisClient = {}
