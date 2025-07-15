@@ -30,7 +30,8 @@
     "headers": {
       "Content-Type": "application/json",
       "Cache-Control": "Cache-Control: public, max-age=5, stale-while-revalidate=30",
-      "Surrogate-Key": "luxury-resort hotel"
+      "Surrogate-Key": "luxury-resort hotel",
+      "Content-Encoding": "identity"
     }
   }
 }

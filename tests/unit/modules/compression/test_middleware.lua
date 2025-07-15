@@ -12,11 +12,13 @@ local CompressionMiddleware = require('modules.compression.middleware')
 describe("CompressionMiddleware", function()
     local fake_gzip_codec
     local fake_brotli_codec
+    local fake_deflate_codec
     local sut
 
     local test_body = "This is a test response body that should be compressed"
     local compressed_gzip = "gzip_compressed_data"
     local compressed_brotli = "brotli_compressed_data"
+    local compressed_deflate = "deflate_compressed_data"
 
     before_each(function()
         fake_gzip_codec = {
@@ -37,7 +39,16 @@ describe("CompressionMiddleware", function()
             end)
         }
 
-        sut = CompressionMiddleware:new(fake_gzip_codec, fake_brotli_codec)
+        fake_deflate_codec = {
+            encode = spy.new(function(data)
+                return compressed_deflate
+            end),
+            decode = spy.new(function(data)
+                return test_body
+            end)
+        }
+
+        sut = CompressionMiddleware:new(fake_gzip_codec, fake_brotli_codec, fake_deflate_codec)
     end)
 
     it("can be instantiated", function()
@@ -170,6 +181,23 @@ describe("CompressionMiddleware", function()
         end)
     end)
 
+    describe("when response is uncompressed and client accepts deflate", function()
+        local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "deflate" }, "", {}, "localhost")
+        local response = Response:new(200, test_body, { ["Content-Type"] = "application/json" })
+
+        local function next(req)
+            return response
+        end
+
+        it("compresses with deflate", function()
+            local result = sut:execute(request, next)
+
+            assert.spy(fake_deflate_codec.encode).was_called_with(test_body)
+            assert.equal(compressed_deflate, result.body)
+            assert.equal("deflate", result.headers["Content-Encoding"])
+        end)
+    end)
+
     describe("when response is gzip compressed and client prefers brotli", function()
         local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "br" }, "", {}, "localhost")
         local response = Response:new(200, compressed_gzip, { ["Content-Type"] = "text/html", ["Content-Encoding"] = "gzip" })
@@ -193,6 +221,23 @@ describe("CompressionMiddleware", function()
             assert.equal("br", result.locals.compression_encoding)
             assert.equal("gzip", result.locals.compression_original_encoding)
             assert.is_number(result.locals.compression_ratio)
+        end)
+    end)
+
+    describe("when response is deflate compressed and client accepts multiple encodings", function()
+        local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "gzip, br, deflate" }, "", {}, "localhost")
+        local response = Response:new(200, compressed_deflate, { ["Content-Type"] = "text/html", ["Content-Encoding"] = "deflate" })
+
+        local function next(req)
+            return response
+        end
+
+        it("keeps deflate encoding due to upstream priority", function()
+            local result = sut:execute(request, next)
+
+            assert.equal(response, result)
+            assert.spy(fake_deflate_codec.decode).was_not_called()
+            assert.spy(fake_brotli_codec.encode).was_not_called()
         end)
     end)
 
@@ -240,18 +285,34 @@ describe("CompressionMiddleware", function()
     end)
 
     describe("when Accept-Encoding contains multiple encodings", function()
-        local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "gzip, br" }, "", {}, "localhost")
+        local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "gzip, br, deflate" }, "", {}, "localhost")
         local response = Response:new(200, test_body, { ["Content-Type"] = "text/plain" })
 
         local function next(req)
             return response
         end
 
-        it("prefers br over gzip", function()
+        it("prefers br over gzip over deflate", function()
             local result = sut:execute(request, next)
 
             assert.spy(fake_brotli_codec.encode).was_called()
             assert.equal("br", result.headers["Content-Encoding"])
+        end)
+    end)
+
+    describe("when Accept-Encoding contains only deflate and gzip", function()
+        local request = Request:new("GET", "/test", { ["Accept-Encoding"] = "gzip, deflate" }, "", {}, "localhost")
+        local response = Response:new(200, test_body, { ["Content-Type"] = "text/plain" })
+
+        local function next(req)
+            return response
+        end
+
+        it("prefers gzip over deflate", function()
+            local result = sut:execute(request, next)
+
+            assert.spy(fake_gzip_codec.encode).was_called()
+            assert.equal("gzip", result.headers["Content-Encoding"])
         end)
     end)
 

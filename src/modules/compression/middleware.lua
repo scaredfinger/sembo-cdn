@@ -6,17 +6,20 @@
 --- @class CompressionMiddleware: Middleware
 --- @field gzip Codec
 --- @field brotli Codec
+--- @field deflate Codec
 --- @field __index CompressionMiddleware
 local CompressionMiddleware = {}
 CompressionMiddleware.__index = CompressionMiddleware
 
 --- @param gzip Codec
 --- @param brotli Codec
+--- @param deflate Codec
 --- @return CompressionMiddleware
-function CompressionMiddleware:new(gzip, brotli)
+function CompressionMiddleware:new(gzip, brotli, deflate)
     local instance = setmetatable({}, CompressionMiddleware)
     instance.gzip = gzip
     instance.brotli = brotli
+    instance.deflate = deflate
     return instance
 end
 
@@ -33,7 +36,7 @@ function CompressionMiddleware:_get_preferred_encoding(accept_encoding)
         local name = encoding:match("^([^;]+)")
         if name then
             name = name:lower():gsub("^%s*", ""):gsub("%s*$", "")
-            if name == "br" or name == "gzip" then
+            if name == "br" or name == "gzip" or name == "deflate" then
                 supported_encodings[name] = true
             end
         end
@@ -43,6 +46,43 @@ function CompressionMiddleware:_get_preferred_encoding(accept_encoding)
         return "br"
     elseif supported_encodings["gzip"] then
         return "gzip"
+    elseif supported_encodings["deflate"] then
+        return "deflate"
+    end
+
+    return nil
+end
+
+--- @private
+--- @param accept_encoding string
+--- @param current_encoding string|nil
+--- @return string|nil
+function CompressionMiddleware:_get_preferred_encoding_with_upstream_priority(accept_encoding, current_encoding)
+    if not accept_encoding then
+        return nil
+    end
+
+    local supported_encodings = {}
+    for encoding in accept_encoding:gmatch("([^,]+)") do
+        local name = encoding:match("^([^;]+)")
+        if name then
+            name = name:lower():gsub("^%s*", ""):gsub("%s*$", "")
+            if name == "br" or name == "gzip" or name == "deflate" then
+                supported_encodings[name] = true
+            end
+        end
+    end
+
+    if current_encoding == "deflate" and supported_encodings["deflate"] then
+        return "deflate"
+    end
+
+    if supported_encodings["br"] then
+        return "br"
+    elseif supported_encodings["gzip"] then
+        return "gzip"
+    elseif supported_encodings["deflate"] then
+        return "deflate"
     end
 
     return nil
@@ -57,7 +97,7 @@ function CompressionMiddleware:_get_current_encoding(content_encoding)
     end
     
     local encoding = content_encoding:lower():gsub("^%s*", ""):gsub("%s*$", "")
-    if encoding == "br" or encoding == "gzip" then
+    if encoding == "br" or encoding == "gzip" or encoding == "deflate" then
         return encoding
     end
     
@@ -78,7 +118,7 @@ function CompressionMiddleware:_is_encoding_acceptable(encoding, accept_encoding
         local name = accepted_encoding:match("^([^;]+)")
         if name then
             name = name:lower():gsub("^%s*", ""):gsub("%s*$", "")
-            if name == "br" or name == "gzip" then
+            if name == "br" or name == "gzip" or name == "deflate" then
                 supported_encodings[name] = true
             end
         end
@@ -96,6 +136,8 @@ function CompressionMiddleware:_decompress_body(body, current_encoding)
         return self.gzip.decode(body)
     elseif current_encoding == "br" then
         return self.brotli.decode(body)
+    elseif current_encoding == "deflate" then
+        return self.deflate.decode(body)
     end
     return body
 end
@@ -109,6 +151,8 @@ function CompressionMiddleware:_compress_body(body, preferred_encoding)
         return self.gzip.encode(body), "gzip"
     elseif preferred_encoding == "br" then
         return self.brotli.encode(body), "br"
+    elseif preferred_encoding == "deflate" then
+        return self.deflate.encode(body), "deflate"
     end
     return body, nil
 end
@@ -142,8 +186,8 @@ function CompressionMiddleware:execute(request, next)
     end
 
     local accept_encoding = request.headers["Accept-Encoding"]
-    local preferred_encoding = self:_get_preferred_encoding(accept_encoding)
     local current_encoding = self:_get_current_encoding(response.headers["Content-Encoding"])
+    local preferred_encoding = self:_get_preferred_encoding_with_upstream_priority(accept_encoding, current_encoding)
 
     if current_encoding and self:_is_encoding_acceptable(current_encoding, accept_encoding) then
         return response

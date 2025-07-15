@@ -1,8 +1,8 @@
 local zlib = require "zlib"
 
 local function compress(input)
-  local gzip = zlib.deflate(nil, 31)
-  local compressed, err = gzip(input, "finish")
+  local deflate = zlib.deflate()
+  local compressed, err = deflate(input, "finish")
   if not compressed then
     return nil, err
   end
@@ -10,8 +10,8 @@ local function compress(input)
 end
 
 local function decompress(input)
-  local gunzip = zlib.inflate(nil, 31)
-  local decompressed, err = gunzip(input, "finish")
+  local inflate = zlib.inflate()
+  local decompressed, err = inflate(input, "finish")
   if not decompressed then
     return nil, err
   end

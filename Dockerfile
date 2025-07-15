@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN opm get sjnam/lua-resty-brotli
-RUN luarocks install lua-ffi-zlib
+RUN luarocks install lua-ffi-zlib \
+    && luarocks install lua-zlib 
 
 # Copy configuration and Lua files
 COPY nginx/conf/default.conf /etc/nginx/conf.d/default.conf
