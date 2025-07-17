@@ -2,6 +2,7 @@ local upstream = require "handlers.main.upstream"
 
 local create_pipeline = require "modules.http.pipelining"
 
+local logs = require "handlers.main.logs"
 local metrics = require "handlers.main.metrics"
 local compression = require "handlers.main.compression"
 local cache = require "handlers.main.cache"
@@ -9,6 +10,7 @@ local router = require "handlers.main.router"
 local surrogate = require "handlers.main.surrogate"
 
 local execute = create_pipeline({
+    logs,
     metrics,
     compression,
     cache,

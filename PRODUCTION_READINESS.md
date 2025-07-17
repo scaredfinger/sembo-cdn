@@ -8,6 +8,24 @@ This document outlines the production readiness of the OpenResty reverse proxy s
 ### Security & Compliance
 - [ ] **Network Isolation**: Ensure Redis and management endpoints are isolated from public access
 
+### Logs
+
+No structured logging - Plain text messages instead of JSON with context
+Missing correlation IDs - No request tracing across middleware chain
+Insufficient error context - Missing stack traces, timing, and environmental data
+No error categorization - All errors at same level, no severity classification
+Missing connection pool errors - Redis connection failures not properly logged
+Cache operation failures - Silent failures with basic error messages only
+Upstream failures - Basic 500 responses without detailed error context
+No error rate tracking - No aggregated error metrics for monitoring
+Missing authentication/authorization errors - No security event logging
+Configuration errors - Basic startup validation without detailed error reporting
+Memory exhaustion handling - No logging for resource limit breaches
+Timeout handling - Missing timeout error details and retry logic
+Response validation errors - No validation of upstream responses
+Tag provider failures - Surrogate key operations fail silently
+Metrics collection failures - Shared dictionary errors not properly handled
+
 ### Operational Excellence
 - [ ] **Log Aggregation**: Implement centralized logging with structured JSON format
 - [ ] **Monitoring & Alerting**: Set up comprehensive monitoring with alerting for all critical metrics
