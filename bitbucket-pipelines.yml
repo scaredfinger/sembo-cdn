@@ -1,0 +1,57 @@
+image: atlassian/default-image:3
+
+definitions:
+  steps:
+    - step: &run-tests
+        name: Run Tests
+        image: openresty/openresty:bookworm-fat
+        script:
+          - apt-get update && apt-get install -y luarocks git
+          - luarocks install busted
+          - luarocks install lua-resty-http
+          - luarocks install lua-resty-redis
+          - export LUA_PATH="/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./src/?.lua;./src/?/init.lua;;"
+          - cd tests && busted --verbose
+
+    - step: &build-image
+        name: Build Docker Image
+        size: '2x'
+        script:
+          - export IMAGE_TAG=${BITBUCKET_REPO_FULL_NAME}:${BITBUCKET_BUILD_NUMBER}
+          - export IMAGE_LATEST=${BITBUCKET_REPO_FULL_NAME}:latest
+          - docker build --tag ${IMAGE_TAG} --tag ${IMAGE_LATEST} .
+          - echo "Image built successfully:"
+          - echo "  ${IMAGE_TAG}"
+          - echo "  ${IMAGE_LATEST}"
+          - 'echo "{\"version\":\"$(date +%Y.%m.%d)\",\"commit\":\"$BITBUCKET_COMMIT\",\"build_number\":\"$BITBUCKET_BUILD_NUMBER\",\"image\":\"${IMAGE_TAG}\"}" > docker-image-info.txt'
+        services:
+          - docker
+        artifacts:
+          - docker-image-info.txt
+
+  services:
+    docker:
+      memory: 3072
+
+clone:
+  depth: full
+
+pipelines:
+  default:
+    - step: *run-tests
+    - step: *build-image
+
+  branches:
+    main:
+      - step: *run-tests
+      - step: *build-image
+
+  pull-requests:
+    '**':
+      - step: *run-tests
+      - step: *build-image
+
+  tags:
+    'v*':
+      - step: *run-tests
+      - step: *build-image
