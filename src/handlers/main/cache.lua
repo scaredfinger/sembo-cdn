@@ -17,7 +17,6 @@ local cache_instance = CacheMiddleware:new(
     cache_provider,
     cache_key_strategy_host_path,
     cache_control_parser,
-    defer_function,
-    
+    defer_function
 )
 return cache_instance
