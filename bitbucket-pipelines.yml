@@ -10,7 +10,7 @@ definitions:
           - luarocks install busted
           - luarocks install lua-resty-http
           - luarocks install lua-resty-redis
-          - luarocks install lua-cjson          - 
+          - luarocks install lua-cjson
           - export LUA_PATH="/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./src/?.lua;./src/?/init.lua;;"
           - ./scripts/test.sh
 
