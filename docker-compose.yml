@@ -33,13 +33,9 @@ services:
         - action: rebuild
           path: ./Dockerfile
 
-  # Redis service (for development/testing only)
+  # KeyDB service (for development/testing only)
   redis:
-    image: redis:7-alpine
-    environment:
-      - REDIS_APPENDONLY=yes
-    volumes:
-      - redis-dev-data:/data
+    image: eqalpha/keydb:latest
 
   redisinsight:
     image: redislabs/redisinsight:latest
@@ -86,6 +82,3 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     depends_on:
       - proxy
-
-volumes:
-  redis-dev-data:
