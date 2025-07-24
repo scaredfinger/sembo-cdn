@@ -1,6 +1,6 @@
-FROM ubuntu:24.10
+FROM ubuntu:22.04
 
-# Install system dependencies and Docker CLI
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg \
     lsb-release \
+    software-properties-common \
+    apt-utils \
     && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
     && apt-get update \
@@ -44,7 +46,10 @@ RUN git clone https://github.com/sjnam/lua-resty-brotli.git \
     && cp -r lua-resty-brotli/brotli /usr/local/share/lua/5.1/resty/brotli \
     && rm -rf lua-resty-brotli
 
-RUN groupadd docker && usermod -aG docker ubuntu
+# Create ubuntu user and add to docker group
+RUN useradd -m -s /bin/bash ubuntu \
+    && groupadd docker \
+    && usermod -aG docker ubuntu
 USER ubuntu
 
 # Set environment variables for Lua development

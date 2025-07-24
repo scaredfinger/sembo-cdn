@@ -18,7 +18,8 @@ definitions:
         name: Build Docker Image
         size: '2x'
         script:
-          - export IMAGE_TAG=${BITBUCKET_REPO_FULL_NAME}:${BITBUCKET_BUILD_NUMBER}
+          - echo ${DOCKER_PASSWORD} | docker login $CONTAINER_REGISTRY --username "$DOCKER_USERNAME" --password-stdin
+          - export IMAGE_TAG=${CONTAINER_REGISTRY}/${BITBUCKET_REPO_FULL_NAME}:${BITBUCKET_BUILD_NUMBER}
           - export IMAGE_LATEST=${BITBUCKET_REPO_FULL_NAME}:latest
           - docker build --tag ${IMAGE_TAG} --tag ${IMAGE_LATEST} .
           - echo "Image built successfully:"
