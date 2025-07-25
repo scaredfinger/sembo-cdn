@@ -27,7 +27,7 @@ else
     logs.error("Failed to load route patterns from file: " .. routes_file)
 end
 
-require "handlers.metrics.init"
+require "handlers.utils.metrics.init"
 
 local full_config = config.get_all()
 logs.debug("Sembo CDN configuration: " .. cjson.encode(full_config))
