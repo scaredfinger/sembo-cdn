@@ -25,4 +25,8 @@ metrics:register_histogram(metrics_names.cache_operation, {
   cache_name = { "redis", "s3" }
 }, { 0.01, 0.05, 0.1, 0.5, 1, 2 })
 
+metrics:register_gauge(metrics_names.shared_dictionary, {
+  instance_name = { "metrics", "routes" }
+})
+
 return metrics

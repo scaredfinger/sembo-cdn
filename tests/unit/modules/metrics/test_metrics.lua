@@ -463,4 +463,161 @@ describe('metrics module', function()
             assert.equals(1, ngx.shared.metrics:get('test_request_count{method="GET",success="false"}'))
         end)
     end)
+
+    describe('register_gauge', function()
+        it('should register gauge without labels', function()
+            metrics:register_gauge('test_gauge')
+
+            assert.equals(0, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should register gauge with label values', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1", "server2" } })
+
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server1"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server2"}'))
+        end)
+
+        it('should generate all label combinations for gauges', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1", "server2" }, region = { "us", "eu" } })
+
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server1",region="us"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server1",region="eu"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server2",region="us"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_gauge{instance="server2",region="eu"}'))
+        end)
+
+        it('should not register gauge twice', function()
+            metrics:register_gauge('test_gauge')
+            metrics:register_gauge('test_gauge')
+
+            assert.equals(0, ngx.shared.metrics:get('test_gauge'))
+        end)
+    end)
+
+    describe('set_gauge', function()
+        it('should set gauge without labels', function()
+            metrics:register_gauge('test_gauge')
+            metrics:set_gauge('test_gauge', 42.5)
+
+            assert.equals(42.5, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should set gauge with labels', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1" } })
+            metrics:set_gauge('test_gauge', 15.3, { instance = "server1" })
+
+            assert.equals(15.3, ngx.shared.metrics:get('test_gauge{instance="server1"}'))
+        end)
+
+        it('should overwrite previous gauge value', function()
+            metrics:register_gauge('test_gauge')
+            metrics:set_gauge('test_gauge', 10.0)
+            metrics:set_gauge('test_gauge', 20.0)
+
+            assert.equals(20.0, ngx.shared.metrics:get('test_gauge'))
+        end)
+    end)
+
+    describe('inc_gauge', function()
+        it('should increment gauge without labels', function()
+            metrics:register_gauge('test_gauge')
+            metrics:inc_gauge('test_gauge')
+
+            assert.equals(1, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should increment gauge with custom value', function()
+            metrics:register_gauge('test_gauge')
+            metrics:inc_gauge('test_gauge', 5.5)
+
+            assert.equals(5.5, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should increment gauge with labels', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1" } })
+            metrics:inc_gauge('test_gauge', 3.2, { instance = "server1" })
+
+            assert.equals(3.2, ngx.shared.metrics:get('test_gauge{instance="server1"}'))
+        end)
+
+        it('should accumulate increments', function()
+            metrics:register_gauge('test_gauge')
+            metrics:inc_gauge('test_gauge', 10)
+            metrics:inc_gauge('test_gauge', 5)
+
+            assert.equals(15, ngx.shared.metrics:get('test_gauge'))
+        end)
+    end)
+
+    describe('dec_gauge', function()
+        it('should decrement gauge without labels', function()
+            metrics:register_gauge('test_gauge')
+            metrics:set_gauge('test_gauge', 10)
+            metrics:dec_gauge('test_gauge')
+
+            assert.equals(9, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should decrement gauge with custom value', function()
+            metrics:register_gauge('test_gauge')
+            metrics:set_gauge('test_gauge', 20)
+            metrics:dec_gauge('test_gauge', 5.5)
+
+            assert.equals(14.5, ngx.shared.metrics:get('test_gauge'))
+        end)
+
+        it('should decrement gauge with labels', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1" } })
+            metrics:set_gauge('test_gauge', 100, { instance = "server1" })
+            metrics:dec_gauge('test_gauge', 25, { instance = "server1" })
+
+            assert.equals(75, ngx.shared.metrics:get('test_gauge{instance="server1"}'))
+        end)
+
+        it('should allow gauge to go negative', function()
+            metrics:register_gauge('test_gauge')
+            metrics:dec_gauge('test_gauge', 5)
+
+            assert.equals(-5, ngx.shared.metrics:get('test_gauge'))
+        end)
+    end)
+
+    describe('prometheus generation with gauges', function()
+        it('should generate valid Prometheus gauge output', function()
+            metrics:register_gauge('test_gauge',
+                { instance = { "server1", "server2" } })
+            metrics:set_gauge('test_gauge', 42.5, { instance = "server1" })
+            metrics:set_gauge('test_gauge', 15.3, { instance = "server2" })
+
+            local output = metrics:generate_prometheus()
+
+            assert.is_string(output)
+            assert.is_true(string.find(output, '# HELP test_gauge ') ~= nil)
+            assert.is_true(string.find(output, '# TYPE test_gauge gauge') ~= nil)
+            assert.is_true(string.find(output, 'test_gauge{instance="server1"} 42.5') ~= nil)
+            assert.is_true(string.find(output, 'test_gauge{instance="server2"} 15.3') ~= nil)
+        end)
+
+        it('should include all metric types in prometheus output', function()
+            metrics:register_counter('test_counter')
+            metrics:register_gauge('test_gauge')
+            metrics:register_histogram('test_histogram')
+
+            metrics:inc_counter('test_counter', 10)
+            metrics:set_gauge('test_gauge', 25.5)
+            metrics:observe_histogram_success('test_histogram', 0.5)
+
+            local output = metrics:generate_prometheus()
+
+            assert.is_true(string.find(output, '# TYPE test_counter counter') ~= nil)
+            assert.is_true(string.find(output, '# TYPE test_gauge gauge') ~= nil)
+            assert.is_true(string.find(output, '# TYPE test_histogram histogram') ~= nil)
+        end)
+    end)
 end)

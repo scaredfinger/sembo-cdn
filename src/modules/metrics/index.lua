@@ -5,10 +5,14 @@
 --- @field label_values table<string, string[]>
 --- @field buckets number[]
 
+--- @class GaugeConfig
+--- @field label_values table<string, string[]>
+
 --- @class Metrics
 --- @field metrics_dict SharedDictionary
 --- @field histograms table<string, HistogramConfig>
 --- @field counters table<string, CounterConfig>
+--- @field gauges table<string, GaugeConfig>
 --- @field log_error fun(msg: string, ...: any)
 --- @field __index Metrics
 local Metrics = {}
@@ -27,6 +31,7 @@ function Metrics.new(metrics_dict, log_error)
         metrics_dict = metrics_dict,
         histograms = {},
         counters = {},
+        gauges = {},
         log_error = log_error
     }, Metrics)
 
@@ -139,6 +144,62 @@ function Metrics:inc_counter(name, value, labels)
         self.log_error("Counter key not found: " .. key)
     else
         self.metrics_dict:incr(key, value)
+    end
+end
+
+--- @param name string
+--- @param value number
+--- @param labels? table<string, any>
+function Metrics:set_gauge(name, value, labels)
+    local gauge_config = self.gauges[name]
+    if not gauge_config then
+        self.log_error("Gauge not registered: " .. name)
+    end
+
+    local key = self:_build_key(name, labels)
+
+    if not self.metrics_dict:get(key) then
+        self.log_error("Gauge key not found: " .. key)
+    else
+        self.metrics_dict:set(key, value)
+    end
+end
+
+--- @param name string
+--- @param value? number
+--- @param labels? table<string, any>
+function Metrics:inc_gauge(name, value, labels)
+    local gauge_config = self.gauges[name]
+    if not gauge_config then
+        self.log_error("Gauge not registered: " .. name)
+    end
+
+    value = value or 1
+    local key = self:_build_key(name, labels)
+
+    if not self.metrics_dict:get(key) then
+        self.log_error("Gauge key not found: " .. key)
+    else
+        self.metrics_dict:incr(key, value)
+    end
+end
+
+--- @param name string
+--- @param value? number
+--- @param labels? table<string, any>
+function Metrics:dec_gauge(name, value, labels)
+    local gauge_config = self.gauges[name]
+    if not gauge_config then
+        self.log_error("Gauge not registered: " .. name)
+    end
+
+    value = value or 1
+    local key = self:_build_key(name, labels)
+
+    if not self.metrics_dict:get(key) then
+        self.log_error("Gauge key not found: " .. key)
+    else
+        self.metrics_dict:incr(key, -value)
     end
 end
 
@@ -290,6 +351,31 @@ function Metrics:register_counter(name, label_values)
     end
 end
 
+--- @param name string
+--- @param label_values? table<string, string[]>
+function Metrics:register_gauge(name, label_values)
+    -- Check if already registered
+    if self.gauges[name] then
+        return
+    end
+
+    label_values = label_values or {}
+
+    local label_combinations = self:_generate_label_combinations(label_values)
+
+    self.gauges[name] = {
+        label_values = label_values
+    }
+
+    for _, labels in ipairs(label_combinations) do
+        local key = self:_build_key(name, labels)
+        -- Only set if not already exists
+        if not self.metrics_dict:get(key) then
+            self.metrics_dict:set(key, 0)
+        end
+    end
+end
+
 --- @return string
 function Metrics:generate_prometheus()
     local output = {}
@@ -297,6 +383,11 @@ function Metrics:generate_prometheus()
     for name, _ in pairs(self.counters) do
         table.insert(output, "# HELP " .. name .. " ")
         table.insert(output, "# TYPE " .. name .. " counter")
+    end
+
+    for name, _ in pairs(self.gauges) do
+        table.insert(output, "# HELP " .. name .. " ")
+        table.insert(output, "# TYPE " .. name .. " gauge")
     end
 
     for name, _ in pairs(self.histograms) do
@@ -308,9 +399,12 @@ function Metrics:generate_prometheus()
     for _, key in ipairs(keys) do
         local value = self.metrics_dict:get(key)
         if value then
-            local line = self:_format_prometheus_line(key, value)
-            if line then
-                table.insert(output, line)
+            local numeric_value = tonumber(value)
+            if numeric_value then
+                local line = self:_format_prometheus_line(key, numeric_value)
+                if line then
+                    table.insert(output, line)
+                end
             end
         end
     end
