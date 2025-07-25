@@ -9,7 +9,6 @@ describe("CacheStorageMetricsDecorator", function()
     local mock_inner
     local mock_metrics
     local mock_now
-    local mock_get_labels
     local decorator
     local current_time
 
@@ -54,19 +53,11 @@ describe("CacheStorageMetricsDecorator", function()
             return current_time
         end
 
-        mock_get_labels = function(key, operation)
-            return {
-                cache_key = key,
-                operation = operation
-            }
-        end
-
         decorator = CacheStorageMetricsDecorator:new(
             mock_inner,
             mock_metrics,
-            "cache_storage_duration",
-            mock_now,
-            mock_get_labels
+            "redis",
+            mock_now
         )
     end)
 
@@ -79,13 +70,12 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(mock_metrics, decorator.metrics)
         end)
 
-        it("should use provided metric name", function()
-            assert.are.equal("cache_storage_duration", decorator.metric_name)
+        it("should use provided cache name", function()
+            assert.are.equal("redis", decorator.cache_name)
         end)
 
-        it("should use provided timing and labeling functions", function()
+        it("should use provided timing function", function()
             assert.are.equal(mock_now, decorator.now)
-            assert.are.equal(mock_get_labels, decorator.get_labels)
         end)
     end)
 
@@ -115,10 +105,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("success", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
             assert.are.equal("get", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
 
         it("should record failure metrics when get operation fails", function()
@@ -131,10 +121,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("failure", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
             assert.are.equal("get", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
     end)
 
@@ -154,10 +144,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("success", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
             assert.are.equal("set", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
 
         it("should record failure metrics when set operation fails", function()
@@ -170,10 +160,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("failure", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
             assert.are.equal("set", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
     end)
 
@@ -195,10 +185,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("success", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
-            assert.are.equal("del", observation.labels.operation)
+            assert.are.equal("delete", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
 
         it("should record failure metrics when del operation fails", function()
@@ -211,10 +201,10 @@ describe("CacheStorageMetricsDecorator", function()
             assert.are.equal(1, #mock_metrics.histogram_observations)
             local observation = mock_metrics.histogram_observations[1]
             assert.are.equal("failure", observation.type)
-            assert.are.equal("cache_storage_duration", observation.name)
+            assert.are.equal("cache_operation_duration_seconds", observation.name)
             assert.are.equal(10.0, observation.duration)
-            assert.are.equal("test_key", observation.labels.cache_key)
-            assert.are.equal("del", observation.labels.operation)
+            assert.are.equal("delete", observation.labels.operation)
+            assert.are.equal("redis", observation.labels.cache_name)
         end)
     end)
 

@@ -174,7 +174,7 @@ metrics:register_counter("count", labels)
 ### HTTP Handler
 ```lua
 -- handlers/metrics/index.lua
-local metrics = require "utils.metrics.instance"
+local metrics = require "handlers.utils.metrics.instance"
 ngx.header["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
 ngx.say(metrics:generate_prometheus())
 ```
