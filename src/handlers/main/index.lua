@@ -14,7 +14,6 @@ local execute = create_pipeline({
     metrics,
     compression,
     cache,
-    -- compressBeforeCaching,
     router,
     surrogate,
 }, upstream)

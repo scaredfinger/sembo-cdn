@@ -28,8 +28,6 @@ definitions:
           - 'echo "{\"version\":\"$(date +%Y.%m.%d)\",\"commit\":\"$BITBUCKET_COMMIT\",\"build_number\":\"$BITBUCKET_BUILD_NUMBER\",\"image\":\"${IMAGE_TAG}\"}" > docker-image-info.txt'
         services:
           - docker
-        artifacts:
-          - docker-image-info.txt
 
   services:
     docker:
