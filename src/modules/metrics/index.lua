@@ -58,6 +58,24 @@ function Metrics:observe_histogram_failure(base_name, value, labels)
     self:_observe_histogram(histogram_name, value, failure_labels)
 end
 
+--- @param histogram_name string
+--- @param labels table<string, any>
+--- @param func function
+--- @param ... any
+function Metrics:measure_execution(histogram_name, labels, func, ...)
+    local start_time = ngx.now()
+    local success, result = pcall(func, ...)
+    local duration = ngx.now() - start_time
+    
+    if success then
+        self:observe_histogram_success(histogram_name, duration, labels)
+        return result
+    else
+        self:observe_histogram_failure(histogram_name, duration, labels)
+        error(result)
+    end
+end
+
 --- @param name string
 --- @param value number
 --- @param labels? table<string, any>

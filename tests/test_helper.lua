@@ -56,6 +56,18 @@ ngx.log = function(level, ...)
     print("[TEST LOG] " .. message)
 end
 
+-- Mock time functions
+ngx.now = function()
+    return os.clock()
+end
+
+ngx.sleep = function(seconds)
+    local start = os.clock()
+    while os.clock() - start < seconds do
+        -- Busy wait for testing
+    end
+end
+
 -- Mock ngx.var
 if not ngx.var then
     ngx.var = {

@@ -464,6 +464,163 @@ describe('metrics module', function()
         end)
     end)
 
+    describe('measure_execution', function()
+        it('should measure successful function execution without labels', function()
+            metrics:register_histogram("test_execution")
+            
+            local test_function = function()
+                return "success_result"
+            end
+            
+            local result = metrics:measure_execution('test_execution', {}, test_function)
+            
+            assert.equals("success_result", result)
+            assert.is_true(ngx.shared.metrics:get('test_execution_sum{success="true"}') > 0)
+            assert.equals(1, ngx.shared.metrics:get('test_execution_count{success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_execution_count{success="false"}'))
+        end)
+
+        it('should measure successful function execution with labels', function()
+            metrics:register_histogram("api_call", {
+                endpoint = { "/users" }
+            })
+            
+            local api_function = function(user_id)
+                return { id = user_id, name = "John" }
+            end
+            
+            local result = metrics:measure_execution('api_call', { endpoint = "/users" }, api_function, 123)
+            
+            assert.equals(123, result.id)
+            assert.equals("John", result.name)
+            assert.is_true(ngx.shared.metrics:get('api_call_sum{endpoint="/users",success="true"}') > 0)
+            assert.equals(1, ngx.shared.metrics:get('api_call_count{endpoint="/users",success="true"}'))
+        end)
+
+        it('should measure failed function execution without labels', function()
+            metrics:register_histogram("test_execution")
+            
+            local failing_function = function()
+                error("test error")
+            end
+            
+            assert.has_error(function()
+                metrics:measure_execution('test_execution', {}, failing_function)
+            end)
+            
+            assert.is_true(ngx.shared.metrics:get('test_execution_sum{success="false"}') > 0)
+            assert.equals(1, ngx.shared.metrics:get('test_execution_count{success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_execution_count{success="true"}'))
+        end)
+
+        it('should measure failed function execution with labels', function()
+            metrics:register_histogram("database_query", {
+                operation = { "select" }
+            })
+            
+            local failing_query = function(query)
+                error("database connection failed")
+            end
+            
+            assert.has_error(function()
+                metrics:measure_execution('database_query', { operation = "select" }, failing_query, "SELECT * FROM users")
+            end)
+            
+            assert.is_true(ngx.shared.metrics:get('database_query_sum{operation="select",success="false"}') > 0)
+            assert.equals(1, ngx.shared.metrics:get('database_query_count{operation="select",success="false"}'))
+        end)
+
+        it('should handle function with single return value', function()
+            metrics:register_histogram("single_return")
+            
+            local single_function = function()
+                return "result"
+            end
+            
+            local result = metrics:measure_execution('single_return', {}, single_function)
+            
+            assert.equals("result", result)
+            assert.equals(1, ngx.shared.metrics:get('single_return_count{success="true"}'))
+        end)
+
+        it('should handle function with no return values', function()
+            metrics:register_histogram("void_function")
+            
+            local executed = false
+            local void_function = function()
+                executed = true
+            end
+            
+            local result = metrics:measure_execution('void_function', {}, void_function)
+            
+            assert.is_true(executed)
+            assert.is_nil(result)
+            assert.equals(1, ngx.shared.metrics:get('void_function_count{success="true"}'))
+        end)
+
+        it('should pass through function arguments correctly', function()
+            metrics:register_histogram("parameterized_function")
+            
+            local sum_function = function(a, b, c)
+                return a + b + c
+            end
+            
+            local result = metrics:measure_execution('parameterized_function', {}, sum_function, 10, 20, 30)
+            
+            assert.equals(60, result)
+            assert.equals(1, ngx.shared.metrics:get('parameterized_function_count{success="true"}'))
+        end)
+
+        it('should measure execution time accurately', function()
+            metrics:register_histogram("timed_function")
+            
+            local slow_function = function()
+                ngx.sleep(0.1)
+                return "done"
+            end
+            
+            metrics:measure_execution('timed_function', {}, slow_function)
+            
+            local recorded_time = ngx.shared.metrics:get('timed_function_sum{success="true"}')
+            assert.is_true(recorded_time >= 0.1)
+            assert.is_true(recorded_time < 0.2)
+        end)
+
+        it('should handle nested function calls', function()
+            metrics:register_histogram("outer_function")
+            metrics:register_histogram("inner_function")
+            
+            local inner_function = function()
+                return metrics:measure_execution('inner_function', {}, function()
+                    return "inner_result"
+                end)
+            end
+            
+            local result = metrics:measure_execution('outer_function', {}, inner_function)
+            
+            assert.equals("inner_result", result)
+            assert.equals(1, ngx.shared.metrics:get('outer_function_count{success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('inner_function_count{success="true"}'))
+        end)
+
+        it('should preserve error context when function fails', function()
+            metrics:register_histogram("context_function")
+            
+            local context_function = function(param)
+                error("Failed with param: " .. param)
+            end
+            
+            local error_message
+            local success, err = pcall(function()
+                metrics:measure_execution('context_function', {}, context_function, "test_value")
+            end)
+            
+            assert.is_false(success)
+            assert.is_true(string.find(err, "Failed with param: test_value") ~= nil)
+            assert.equals(1, ngx.shared.metrics:get('context_function_count{success="false"}'))
+        end)
+    end)
+
     describe('register_gauge', function()
         it('should register gauge without labels', function()
             metrics:register_gauge('test_gauge')
