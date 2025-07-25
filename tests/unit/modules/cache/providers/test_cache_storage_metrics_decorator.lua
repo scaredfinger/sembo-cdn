@@ -73,6 +73,7 @@ describe("CacheStorageMetricsDecorator", function()
         decorator = CacheStorageMetricsDecorator:new(
             mock_inner,
             mock_metrics,
+            "cache_operation_duration_seconds",
             "redis"
         )
     end)
@@ -84,6 +85,10 @@ describe("CacheStorageMetricsDecorator", function()
 
         it("should use provided metrics instance", function()
             assert.are.equal(mock_metrics, decorator.metrics)
+        end)
+
+        it("should use provided metrics name", function()
+            assert.are.equal("cache_operation_duration_seconds", decorator.metrics_name)
         end)
 
         it("should use provided cache name", function()

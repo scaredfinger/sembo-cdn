@@ -35,11 +35,12 @@ local cache_provider_gzip_decorator = CacheStorageCompressionDecorator:new(
 
 local CacheStorageMetricsDecorator = require "modules.cache.providers.cache_storage_metrics_decorator"
 local metrics = require "handlers.utils.metrics.instance"
+local metrics_name = require "handlers.utils.metrics.names"
 local cache_storage_metrics_decorator = CacheStorageMetricsDecorator:new(
   cache_provider_gzip_decorator,
   metrics,
-  "redis",
-  ngx.now
+  metrics_name.cache_operation,
+  "redis"
 )
 
 local JsonCacheProvider = require "modules.cache.providers.json_cache_provider"

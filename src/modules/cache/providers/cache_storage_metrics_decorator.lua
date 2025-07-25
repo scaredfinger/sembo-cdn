@@ -1,6 +1,7 @@
 --- @class CacheStorageMetricsDecorator : CacheStorage
 --- @field inner CacheStorage
 --- @field metrics Metrics
+--- @field metrics_name string
 --- @field cache_name string
 --- @field __index CacheStorageMetricsDecorator
 local CacheStorageMetricsDecorator = {}
@@ -8,12 +9,14 @@ CacheStorageMetricsDecorator.__index = CacheStorageMetricsDecorator
 
 --- @param inner CacheStorage
 --- @param metrics Metrics
+--- @param metrics_name string
 --- @param cache_name string
 --- @return CacheStorageMetricsDecorator
-function CacheStorageMetricsDecorator:new(inner, metrics, cache_name)
+function CacheStorageMetricsDecorator:new(inner, metrics, metrics_name, cache_name)
     local instance = setmetatable({
         inner = inner,
         metrics = metrics,
+        metrics_name = metrics_name,
         cache_name = cache_name
     }, CacheStorageMetricsDecorator)
     return instance
@@ -27,7 +30,7 @@ function CacheStorageMetricsDecorator:get(key)
         cache_name = self.cache_name
     }
     
-    return self.metrics:measure_execution("cache_operation_duration_seconds", labels, function()
+    return self.metrics:measure_execution(self.metrics_name, labels, function()
         return self.inner:get(key)
     end)
 end
@@ -43,7 +46,7 @@ function CacheStorageMetricsDecorator:set(key, value, tts, ttl)
         cache_name = self.cache_name
     }
     
-    return self.metrics:measure_execution("cache_operation_duration_seconds", labels, function()
+    return self.metrics:measure_execution(self.metrics_name, labels, function()
         return self.inner:set(key, value, tts, ttl)
     end)
 end
@@ -56,7 +59,7 @@ function CacheStorageMetricsDecorator:del(key)
         cache_name = self.cache_name
     }
     
-    return self.metrics:measure_execution("cache_operation_duration_seconds", labels, function()
+    return self.metrics:measure_execution(self.metrics_name, labels, function()
         return self.inner:del(key)
     end)
 end
