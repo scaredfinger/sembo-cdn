@@ -55,7 +55,7 @@ function Metrics:observe_histogram_success(base_name, value, labels)
     local histogram_name = base_name
     local success_labels = labels or {}
     success_labels.success = "true"
-    self:observe_histogram(histogram_name, value, success_labels)
+    self:_observe_histogram(histogram_name, value, success_labels)
 end
 
 --- @param base_name string
@@ -65,7 +65,7 @@ function Metrics:observe_histogram_failure(base_name, value, labels)
     local histogram_name = base_name
     local failure_labels = labels or {}
     failure_labels.success = "false"
-    self:observe_histogram(histogram_name, value, failure_labels)
+    self:_observe_histogram(histogram_name, value, failure_labels)
 end
 
 --- @param base_name string
@@ -78,13 +78,14 @@ function Metrics:observe_composite_success(base_name, value, labels)
     end
 
     local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
-    self:observe_histogram(histogram_name, value, labels)
+    self:_observe_histogram(histogram_name, value, labels)
 end
 
 --- @param name string
 --- @param value number
 --- @param labels? table<string, any>
-function Metrics:observe_histogram(name, value, labels)
+--- @private
+function Metrics:_observe_histogram(name, value, labels)
     local histogram_config = self.histograms[name]
     if not histogram_config then
         self.log_error("Histogram not registered: " .. name)
@@ -218,6 +219,10 @@ function Metrics:register_histogram(name, label_values, buckets)
     end
 
     label_values = label_values or {}
+    -- Automatically add success label if not present
+    if not label_values.success then
+        label_values.success = { "true", "false" }
+    end
     buckets = buckets or { 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0 }
 
     local label_combinations = self:_generate_label_combinations(label_values)

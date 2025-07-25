@@ -51,9 +51,7 @@ describe('MetricsMiddleware', function()
         mock_response = { status = 200, body = "OK" }
 
         -- Register the histogram metric
-        metrics:register_histogram("test_operation", {
-            success = { "true", "false" }
-        })
+        metrics:register_histogram("test_operation")
     end)
 
     describe('new', function()

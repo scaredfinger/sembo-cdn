@@ -46,89 +46,96 @@ describe('metrics module', function()
         it('should register histogram without labels', function()
             metrics:register_histogram('test_histogram')
 
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_count'))
+            -- Success label is now added automatically
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{success="false"}'))
             -- Check some default buckets
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",success="true"}'))
         end)
 
         it('should register histogram with label values', function()
             metrics:register_histogram('test_histogram', { method = { "GET", "POST" } })
 
-            -- Check GET labels
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005",method="GET"}'))
+            -- Check GET labels (success is automatically added)
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{method="GET",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005",method="GET",success="true"}'))
 
             -- Check POST labels
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{method="POST"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005",method="POST"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_count{method="POST",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.005",method="POST",success="true"}'))
         end)
 
         it('should register histogram with custom buckets', function()
             metrics:register_histogram('test_histogram',
                 {}, { 0.1, 0.5, 1.0 })
 
-            -- Keys use tostring() so 1.0 becomes "1"
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.5"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="1"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf"}'))
+            -- Keys use tostring() so 1.0 becomes "1", success is added automatically
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.5",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="1",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",success="true"}'))
         end)
 
         it('should generate all label combinations', function()
             metrics:register_histogram('test_histogram', { method = { "GET", "POST" }, status = { "200", "404" } })
 
-            -- Should create 4 combinations: GET+200, GET+404, POST+200, POST+404
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="200"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="404"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="200"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="404"}'))
+            -- Should create 8 combinations: (GET,POST) x (200,404) x (true,false)
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="200",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="404",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="200",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="404",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="200",success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="GET",status="404",success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="200",success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_sum{method="POST",status="404",success="false"}'))
         end)
     end)
 
-    describe('observe_histogram', function()
+    describe('_observe_histogram (private)', function()
         it('should observe histogram value without labels', function()
             metrics:register_histogram('test_histogram')
-            metrics:observe_histogram('test_histogram', 0.25)
+            metrics:_observe_histogram('test_histogram', 0.25, { success = "true" })
 
-            assert.equals(0.25, ngx.shared.metrics:get('test_histogram_sum'))
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_count'))
+            assert.equals(0.25, ngx.shared.metrics:get('test_histogram_sum{success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_count{success="true"}'))
 
             -- Check bucket increments - use actual key format
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.25"}'))
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.5"}'))
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.25",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.5",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1",success="true"}'))
         end)
 
         it('should observe histogram value with labels', function()
             metrics:register_histogram('test_histogram',
                 { method = { "GET" } })
-            metrics:observe_histogram('test_histogram', 0.15, { method = "GET" })
+            metrics:_observe_histogram('test_histogram', 0.15, { method = "GET", success = "true" })
 
-            assert.equals(0.15, ngx.shared.metrics:get('test_histogram_sum{method="GET"}'))
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_count{method="GET"}'))
+            assert.equals(0.15, ngx.shared.metrics:get('test_histogram_sum{method="GET",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_count{method="GET",success="true"}'))
 
             -- Check bucket increments - use actual key format
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.25",method="GET"}'))
-            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1",method="GET"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="0.25",method="GET",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",method="GET",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_histogram_bucket{le="0.1",method="GET",success="true"}'))
         end)
 
         it('should accumulate histogram values', function()
             metrics:register_histogram('test_histogram')
-            metrics:observe_histogram('test_histogram', 0.1)
-            metrics:observe_histogram('test_histogram', 0.3)
+            metrics:_observe_histogram('test_histogram', 0.1, { success = "true" })
+            metrics:_observe_histogram('test_histogram', 0.3, { success = "true" })
 
-            assert.equals(0.4, ngx.shared.metrics:get('test_histogram_sum'))
-            assert.equals(2, ngx.shared.metrics:get('test_histogram_count'))
+            assert.equals(0.4, ngx.shared.metrics:get('test_histogram_sum{success="true"}'))
+            assert.equals(2, ngx.shared.metrics:get('test_histogram_count{success="true"}'))
 
             -- Check bucket accumulation
-            assert.equals(2, ngx.shared.metrics:get('test_histogram_bucket{le="0.5"}'))
-            assert.equals(2, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf"}'))
+            assert.equals(2, ngx.shared.metrics:get('test_histogram_bucket{le="0.5",success="true"}'))
+            assert.equals(2, ngx.shared.metrics:get('test_histogram_bucket{le="+Inf",success="true"}'))
         end)
     end)
 
@@ -147,7 +154,7 @@ describe('metrics module', function()
     describe('generate_prometheus', function()
         it('should generate valid Prometheus histogram output', function()
             metrics:register_histogram('test_histogram', {}, { 0.1, 0.5, 1.0 })
-            metrics:observe_histogram('test_histogram', 0.25)
+            metrics:_observe_histogram('test_histogram', 0.25, { success = "true" })
 
             local output = metrics:generate_prometheus()
 
@@ -156,15 +163,15 @@ describe('metrics module', function()
             assert.is_true(string.find(output, '# TYPE test_histogram histogram') ~= nil)
 
             -- Check bucket outputs
-            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.5"} 1') ~= nil)
-            assert.is_true(string.find(output, 'test_histogram_bucket{le="1"} 1') ~= nil)
-            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.1"} 0') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.5",success="true"} 1') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="1",success="true"} 1') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="0.1",success="true"} 0') ~= nil)
             -- Use plain string match for +Inf (no pattern matching)
-            assert.is_true(string.find(output, 'test_histogram_bucket{le="+Inf"} 1', 1, true) ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_bucket{le="+Inf",success="true"} 1', 1, true) ~= nil)
 
             -- Check sum and count
-            assert.is_true(string.find(output, 'test_histogram_sum 0.25') ~= nil)
-            assert.is_true(string.find(output, 'test_histogram_count 1') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_sum{success="true"} 0.25') ~= nil)
+            assert.is_true(string.find(output, 'test_histogram_count{success="true"} 1') ~= nil)
         end)
 
         it('should generate valid Prometheus counter output', function()
@@ -186,12 +193,12 @@ describe('metrics module', function()
     describe('get_summary', function()
         it('should return summary of all metrics', function()
             metrics:register_histogram('test_histogram')
-            metrics:observe_histogram('test_histogram', 2.5)
+            metrics:_observe_histogram('test_histogram', 2.5, { success = "true" })
 
             local summary = metrics:get_summary()
 
-            assert.equals(2.5, summary["test_histogram_sum"])
-            assert.equals(1, summary["test_histogram_count"])
+            assert.equals(2.5, summary["test_histogram_sum{success=\"true\"}"])
+            assert.equals(1, summary["test_histogram_count{success=\"true\"}"])
         end)
     end)
 
@@ -206,12 +213,12 @@ describe('metrics module', function()
             local expected_count = #observations
 
             for _, value in ipairs(observations) do
-                metrics:observe_histogram('concurrent_histogram', value)
+                metrics:_observe_histogram('concurrent_histogram', value, { success = "true" })
                 expected_sum = expected_sum + value
             end
 
-            assert.equals(expected_sum, ngx.shared.metrics:get('concurrent_histogram_sum'))
-            assert.equals(expected_count, ngx.shared.metrics:get('concurrent_histogram_count'))
+            assert.equals(expected_sum, ngx.shared.metrics:get('concurrent_histogram_sum{success="true"}'))
+            assert.equals(expected_count, ngx.shared.metrics:get('concurrent_histogram_count{success="true"}'))
         end)
 
         it('should handle concurrent observations with same labels', function()
@@ -219,17 +226,17 @@ describe('metrics module', function()
                 { method = { "GET" } })
 
             -- Multiple concurrent observations with same labels
-            local labels = { method = "GET" }
+            local labels = { method = "GET", success = "true" }
             local values = { 0.1, 0.2, 0.3, 0.4, 0.5 }
             local expected_sum = 0
 
             for _, value in ipairs(values) do
-                metrics:observe_histogram('labeled_histogram', value, labels)
+                metrics:_observe_histogram('labeled_histogram', value, labels)
                 expected_sum = expected_sum + value
             end
 
-            assert.equals(expected_sum, ngx.shared.metrics:get('labeled_histogram_sum{method="GET"}'))
-            assert.equals(#values, ngx.shared.metrics:get('labeled_histogram_count{method="GET"}'))
+            assert.equals(expected_sum, ngx.shared.metrics:get('labeled_histogram_sum{method="GET",success="true"}'))
+            assert.equals(#values, ngx.shared.metrics:get('labeled_histogram_count{method="GET",success="true"}'))
         end)
 
         it('should handle concurrent observations with different labels', function()
@@ -241,25 +248,25 @@ describe('metrics module', function()
 
             -- Concurrent observations with different label combinations
             local test_cases = {
-                { labels = { method = "GET", status = "200" }, value = 1.0 },
-                { labels = { method = "POST", status = "200" }, value = 2.0 },
-                { labels = { method = "GET", status = "404" }, value = 3.0 },
-                { labels = { method = "GET", status = "200" }, value = 4.0 } -- Same labels as first
+                { labels = { method = "GET", status = "200", success = "true" }, value = 1.0 },
+                { labels = { method = "POST", status = "200", success = "true" }, value = 2.0 },
+                { labels = { method = "GET", status = "404", success = "false" }, value = 3.0 },
+                { labels = { method = "GET", status = "200", success = "true" }, value = 4.0 } -- Same labels as first
             }
 
             for _, case in ipairs(test_cases) do
-                metrics:observe_histogram('multi_label_histogram', case.value, case.labels)
+                metrics:_observe_histogram('multi_label_histogram', case.value, case.labels)
             end
 
             -- Verify individual label combinations
-            assert.equals(5.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="GET",status="200"}'))
-            assert.equals(2, ngx.shared.metrics:get('multi_label_histogram_count{method="GET",status="200"}'))
+            assert.equals(5.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="GET",status="200",success="true"}'))
+            assert.equals(2, ngx.shared.metrics:get('multi_label_histogram_count{method="GET",status="200",success="true"}'))
 
-            assert.equals(2.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="POST",status="200"}'))
-            assert.equals(1, ngx.shared.metrics:get('multi_label_histogram_count{method="POST",status="200"}'))
+            assert.equals(2.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="POST",status="200",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('multi_label_histogram_count{method="POST",status="200",success="true"}'))
 
-            assert.equals(3.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="GET",status="404"}'))
-            assert.equals(1, ngx.shared.metrics:get('multi_label_histogram_count{method="GET",status="404"}'))
+            assert.equals(3.0, ngx.shared.metrics:get('multi_label_histogram_sum{method="GET",status="404",success="false"}'))
+            assert.equals(1, ngx.shared.metrics:get('multi_label_histogram_count{method="GET",status="404",success="false"}'))
         end)
 
         it('should maintain consistency when registering after observations', function()
@@ -268,18 +275,18 @@ describe('metrics module', function()
 
             -- First register and observe
             metrics:register_histogram('consistency_test')
-            metrics:observe_histogram('consistency_test', 1.0)
+            metrics:_observe_histogram('consistency_test', 1.0, { success = "true" })
 
             -- Verify initial state
-            assert.equals(1.0, ngx.shared.metrics:get('consistency_test_sum'))
-            assert.equals(1, ngx.shared.metrics:get('consistency_test_count'))
+            assert.equals(1.0, ngx.shared.metrics:get('consistency_test_sum{success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('consistency_test_count{success="true"}'))
 
             -- Additional observations should work consistently
-            metrics:observe_histogram('consistency_test', 2.0)
-            metrics:observe_histogram('consistency_test', 3.0)
+            metrics:_observe_histogram('consistency_test', 2.0, { success = "true" })
+            metrics:_observe_histogram('consistency_test', 3.0, { success = "true" })
 
-            assert.equals(6.0, ngx.shared.metrics:get('consistency_test_sum'))
-            assert.equals(3, ngx.shared.metrics:get('consistency_test_count'))
+            assert.equals(6.0, ngx.shared.metrics:get('consistency_test_sum{success="true"}'))
+            assert.equals(3, ngx.shared.metrics:get('consistency_test_count{success="true"}'))
         end)
 
         it('should handle rapid sequential observations', function()
@@ -291,13 +298,13 @@ describe('metrics module', function()
 
             for i = 1, num_observations do
                 local value = i * 0.01 -- 0.01, 0.02, 0.03, etc.
-                metrics:observe_histogram('rapid_test', value)
+                metrics:_observe_histogram('rapid_test', value, { success = "true" })
                 total_sum = total_sum + value
             end
 
             -- Verify all observations were recorded correctly
-            assert.equals(total_sum, ngx.shared.metrics:get('rapid_test_sum'))
-            assert.equals(num_observations, ngx.shared.metrics:get('rapid_test_count'))
+            assert.equals(total_sum, ngx.shared.metrics:get('rapid_test_sum{success="true"}'))
+            assert.equals(num_observations, ngx.shared.metrics:get('rapid_test_count{success="true"}'))
         end)
     end)
 
@@ -395,13 +402,12 @@ describe('metrics module', function()
     end)
 
     describe('register_histogram_with_success_label', function()
-        it('should register histogram with success label', function()
+        it('should register histogram with success label automatically', function()
             metrics:register_histogram("test_request", {
-                method = { "GET", "POST" },
-                success = { "true", "false" }
+                method = { "GET", "POST" }
             }, { 0.1, 0.5, 1.0 })
 
-            -- Check labeled metrics (since we have method and success labels)
+            -- Check labeled metrics (success label is added automatically)
             assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="GET",success="true"}'))
             assert.equals(0, ngx.shared.metrics:get('test_request_count{method="GET",success="true"}'))
             assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="GET",success="false"}'))
@@ -410,10 +416,9 @@ describe('metrics module', function()
         end)
 
         it('should handle empty label_values in histogram config', function()
-            metrics:register_histogram("empty_labels_test", {
-                success = { "true", "false" }
-            })
+            metrics:register_histogram("empty_labels_test")
 
+            -- Success label is added automatically even with empty labels
             assert.equals(0, ngx.shared.metrics:get('empty_labels_test_sum{success="true"}'))
             assert.equals(0, ngx.shared.metrics:get('empty_labels_test_sum{success="false"}'))
         end)
@@ -421,9 +426,7 @@ describe('metrics module', function()
 
     describe('observe_histogram_success', function()
         it('should observe histogram success without labels', function()
-            metrics:register_histogram("test_request", {
-                success = { "true", "false" }
-            })
+            metrics:register_histogram("test_request")
             metrics:observe_histogram_success('test_request', 0.25)
 
             assert.equals(0.25, ngx.shared.metrics:get('test_request_sum{success="true"}'))
@@ -432,8 +435,7 @@ describe('metrics module', function()
 
         it('should observe histogram success with labels', function()
             metrics:register_histogram("test_request", {
-                method = { "GET" },
-                success = { "true", "false" }
+                method = { "GET" }
             })
             metrics:observe_histogram_success('test_request', 0.15, { method = "GET" })
 
@@ -444,9 +446,7 @@ describe('metrics module', function()
 
     describe('observe_histogram_failure', function()
         it('should observe histogram failure without labels', function()
-            metrics:register_histogram("test_request", {
-                success = { "true", "false" }
-            })
+            metrics:register_histogram("test_request")
             metrics:observe_histogram_failure('test_request', 0.35)
 
             assert.equals(0.35, ngx.shared.metrics:get('test_request_sum{success="false"}'))
@@ -455,8 +455,7 @@ describe('metrics module', function()
 
         it('should observe histogram failure with labels', function()
             metrics:register_histogram("test_request", {
-                method = { "GET" },
-                success = { "true", "false" }
+                method = { "GET" }
             })
             metrics:observe_histogram_failure('test_request', 0.25, { method = "GET" })
 
