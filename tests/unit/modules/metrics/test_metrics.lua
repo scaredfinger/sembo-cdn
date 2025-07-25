@@ -394,94 +394,74 @@ describe('metrics module', function()
         end)
     end)
 
-    describe('register_composite', function()
-        it('should register composite metric with config table', function()
-            metrics:register_composite({
-                name = "test_request",
-                label_values = {
-                    method = { "GET", "POST" }
-                },
-                histogram_suffix = "_duration",
-                counter_suffix = "_errors",
-                buckets = { 0.1, 0.5, 1.0 }
-            })
+    describe('register_histogram_with_success_label', function()
+        it('should register histogram with success label', function()
+            metrics:register_histogram("test_request", {
+                method = { "GET", "POST" },
+                success = { "true", "false" }
+            }, { 0.1, 0.5, 1.0 })
 
-            -- Check labeled metrics (since we have method labels)
-            assert.equals(0, ngx.shared.metrics:get('success_test_request_duration_sum{method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('success_test_request_duration_count{method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('failed_test_request_errors{method="GET"}'))
-            assert.equals(0, ngx.shared.metrics:get('success_test_request_duration_sum{method="POST"}'))
-            assert.equals(0, ngx.shared.metrics:get('failed_test_request_errors{method="POST"}'))
+            -- Check labeled metrics (since we have method and success labels)
+            assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="GET",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_request_count{method="GET",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="GET",success="false"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="POST",success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('test_request_sum{method="POST",success="false"}'))
         end)
 
-        it('should use defaults for optional config fields', function()
-            metrics:register_composite({
-                name = "simple_test",
-                help = "Simple test metrics"
+        it('should handle empty label_values in histogram config', function()
+            metrics:register_histogram("empty_labels_test", {
+                success = { "true", "false" }
             })
 
-            assert.equals(0, ngx.shared.metrics:get('success_simple_test_seconds_sum'))
-            assert.equals(0, ngx.shared.metrics:get('failed_simple_test_total'))
-        end)
-
-        it('should handle empty label_values in config', function()
-            metrics:register_composite({
-                name = "empty_labels_test",
-                label_values = {}
-            })
-
-            assert.equals(0, ngx.shared.metrics:get('success_empty_labels_test_seconds_sum'))
-            assert.equals(0, ngx.shared.metrics:get('failed_empty_labels_test_total'))
+            assert.equals(0, ngx.shared.metrics:get('empty_labels_test_sum{success="true"}'))
+            assert.equals(0, ngx.shared.metrics:get('empty_labels_test_sum{success="false"}'))
         end)
     end)
 
-    describe('observe_composite_success', function()
-        it('should observe composite success without labels', function()
-            metrics:register_composite({
-                name = "test_request",
-                help = "Test request metrics"
+    describe('observe_histogram_success', function()
+        it('should observe histogram success without labels', function()
+            metrics:register_histogram("test_request", {
+                success = { "true", "false" }
             })
-            metrics:observe_composite_success('test_request', 0.25)
+            metrics:observe_histogram_success('test_request', 0.25)
 
-            assert.equals(0.25, ngx.shared.metrics:get('success_test_request_seconds_sum'))
-            assert.equals(1, ngx.shared.metrics:get('success_test_request_seconds_count'))
+            assert.equals(0.25, ngx.shared.metrics:get('test_request_sum{success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_request_count{success="true"}'))
         end)
 
-        it('should observe composite success with labels', function()
-            metrics:register_composite({
-                name = "test_request",
-                label_values = {
-                    method = { "GET" }
-                }
+        it('should observe histogram success with labels', function()
+            metrics:register_histogram("test_request", {
+                method = { "GET" },
+                success = { "true", "false" }
             })
-            metrics:observe_composite_success('test_request', 0.15, { method = "GET" })
+            metrics:observe_histogram_success('test_request', 0.15, { method = "GET" })
 
-            assert.equals(0.15, ngx.shared.metrics:get('success_test_request_seconds_sum{method="GET"}'))
-            assert.equals(1, ngx.shared.metrics:get('success_test_request_seconds_count{method="GET"}'))
+            assert.equals(0.15, ngx.shared.metrics:get('test_request_sum{method="GET",success="true"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_request_count{method="GET",success="true"}'))
         end)
     end)
 
-    describe('inc_composite_failure', function()
-        it('should increment composite failure without labels', function()
-            metrics:register_composite({
-                name = "test_request",
-                help = "Test request metrics"
+    describe('observe_histogram_failure', function()
+        it('should observe histogram failure without labels', function()
+            metrics:register_histogram("test_request", {
+                success = { "true", "false" }
             })
-            metrics:inc_composite_failure('test_request')
+            metrics:observe_histogram_failure('test_request', 0.35)
 
-            assert.equals(1, ngx.shared.metrics:get('failed_test_request_total'))
+            assert.equals(0.35, ngx.shared.metrics:get('test_request_sum{success="false"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_request_count{success="false"}'))
         end)
 
-        it('should increment composite failure with labels', function()
-            metrics:register_composite({
-                name = "test_request",
-                label_values = {
-                    method = { "GET" }
-                }
+        it('should observe histogram failure with labels', function()
+            metrics:register_histogram("test_request", {
+                method = { "GET" },
+                success = { "true", "false" }
             })
-            metrics:inc_composite_failure('test_request', 3, { method = "GET" })
+            metrics:observe_histogram_failure('test_request', 0.25, { method = "GET" })
 
-            assert.equals(3, ngx.shared.metrics:get('failed_test_request_total{method="GET"}'))
+            assert.equals(0.25, ngx.shared.metrics:get('test_request_sum{method="GET",success="false"}'))
+            assert.equals(1, ngx.shared.metrics:get('test_request_count{method="GET",success="false"}'))
         end)
     end)
 end)

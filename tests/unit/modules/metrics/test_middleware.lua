@@ -50,10 +50,9 @@ describe('MetricsMiddleware', function()
         mock_request = { path = "/test" }
         mock_response = { status = 200, body = "OK" }
 
-        -- Register the composite metric
-        metrics:register_composite({
-            name = "test_operation",
-            label_values = {}
+        -- Register the histogram metric
+        metrics:register_histogram("test_operation", {
+            success = { "true", "false" }
         })
     end)
 
@@ -87,8 +86,8 @@ describe('MetricsMiddleware', function()
 
             -- Verify success metric was observed with correct duration
             local summary = metrics:get_summary()
-            assert.equals(1, summary["success_test_operation_seconds_count"])
-            assert.equals(0.5, summary["success_test_operation_seconds_sum"])
+            assert.equals(1, summary["test_operation_count{success=\"true\"}"])
+            assert.equals(0.5, summary["test_operation_sum{success=\"true\"}"])
         end)
 
         it('should increment failure counter when next function throws error', function()
@@ -113,7 +112,7 @@ describe('MetricsMiddleware', function()
 
             -- Verify failure metric was incremented
             local summary = metrics:get_summary()
-            assert.equals(1, summary["failed_test_operation_total"])
+            assert.equals(1, summary["test_operation_count{success=\"false\"}"])
         end)
 
         it('should handle zero execution time', function()
@@ -129,8 +128,8 @@ describe('MetricsMiddleware', function()
             assert.equals(mock_response, result)
 
             local summary = metrics:get_summary()
-            assert.equals(1, summary["success_test_operation_seconds_count"])
-            assert.equals(0, summary["success_test_operation_seconds_sum"])
+            assert.equals(1, summary["test_operation_count{success=\"true\"}"])
+            assert.equals(0, summary["test_operation_sum{success=\"true\"}"])
         end)
 
         it('should handle multiple successful executions', function()
@@ -155,8 +154,8 @@ describe('MetricsMiddleware', function()
             middleware:execute(mock_request, next_fn)
 
             local summary = metrics:get_summary()
-            assert.equals(2, summary["success_test_operation_seconds_count"])
-            assert.near(0.4, summary["success_test_operation_seconds_sum"], 0.0001)
+            assert.equals(2, summary["test_operation_count{success=\"true\"}"])
+            assert.near(0.4, summary["test_operation_sum{success=\"true\"}"], 0.0001)
         end)
 
         it('should handle mixed success and failure executions', function()
@@ -185,9 +184,9 @@ describe('MetricsMiddleware', function()
             end)
 
             local summary = metrics:get_summary()
-            assert.equals(1, summary["success_test_operation_seconds_count"])
-            assert.near(0.1, summary["success_test_operation_seconds_sum"], 0.0001)
-            assert.equals(1, summary["failed_test_operation_total"])
+            assert.equals(1, summary["test_operation_count{success=\"true\"}"])
+            assert.near(0.1, summary["test_operation_sum{success=\"true\"}"], 0.0001)
+            assert.equals(1, summary["test_operation_count{success=\"false\"}"])
         end)
     end)
 end)

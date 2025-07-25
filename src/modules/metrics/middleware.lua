@@ -34,13 +34,13 @@ function MetricsMiddleware:execute(request, next)
 
     if success then
         if response.status >= 200 and response.status < 300 then
-          self.metrics:observe_composite_success(self.metric_name, duration, labels)
+          self.metrics:observe_histogram_success(self.metric_name, duration, labels)
         else
-          self.metrics:inc_composite_failure(self.metric_name, 1, labels)
+          self.metrics:observe_histogram_failure(self.metric_name, duration, labels)
         end
         return response
     else
-        self.metrics:inc_composite_failure(self.metric_name, 1, labels)
+        self.metrics:observe_histogram_failure(self.metric_name, duration, labels)
         error(response)
     end
 end

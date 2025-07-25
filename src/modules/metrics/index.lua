@@ -51,6 +51,26 @@ end
 --- @param base_name string
 --- @param value number
 --- @param labels? table<string, any>
+function Metrics:observe_histogram_success(base_name, value, labels)
+    local histogram_name = base_name
+    local success_labels = labels or {}
+    success_labels.success = "true"
+    self:observe_histogram(histogram_name, value, success_labels)
+end
+
+--- @param base_name string
+--- @param value number
+--- @param labels? table<string, any>
+function Metrics:observe_histogram_failure(base_name, value, labels)
+    local histogram_name = base_name
+    local failure_labels = labels or {}
+    failure_labels.success = "false"
+    self:observe_histogram(histogram_name, value, failure_labels)
+end
+
+--- @param base_name string
+--- @param value number
+--- @param labels? table<string, any>
 function Metrics:observe_composite_success(base_name, value, labels)
     local composite_config = self.composites[base_name]
     if not composite_config then
