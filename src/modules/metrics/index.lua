@@ -1,10 +1,3 @@
---- @class CompositeMetricConfig
---- @field name string
---- @field label_values? table<string, string[]>
---- @field histogram_suffix? string
---- @field counter_suffix? string
---- @field buckets number[]
-
 --- @class CounterConfig
 --- @field label_values table<string, string[]>
 
@@ -12,17 +5,10 @@
 --- @field label_values table<string, string[]>
 --- @field buckets number[]
 
---- @class CompositeConfig
---- @field label_values table<string, string[]>
---- @field histogram_suffix string
---- @field counter_suffix string
---- @field buckets number[]
-
 --- @class Metrics
 --- @field metrics_dict SharedDictionary
 --- @field histograms table<string, HistogramConfig>
 --- @field counters table<string, CounterConfig>
---- @field composites table<string, CompositeConfig>
 --- @field log_error fun(msg: string, ...: any)
 --- @field __index Metrics
 local Metrics = {}
@@ -41,7 +27,6 @@ function Metrics.new(metrics_dict, log_error)
         metrics_dict = metrics_dict,
         histograms = {},
         counters = {},
-        composites = {},
         log_error = log_error
     }, Metrics)
 
@@ -66,19 +51,6 @@ function Metrics:observe_histogram_failure(base_name, value, labels)
     local failure_labels = labels or {}
     failure_labels.success = "false"
     self:_observe_histogram(histogram_name, value, failure_labels)
-end
-
---- @param base_name string
---- @param value number
---- @param labels? table<string, any>
-function Metrics:observe_composite_success(base_name, value, labels)
-    local composite_config = self.composites[base_name]
-    if not composite_config then
-        self.log_error("Composite metric not registered: " .. base_name)
-    end
-
-    local histogram_name = "success_" .. base_name .. composite_config.histogram_suffix
-    self:_observe_histogram(histogram_name, value, labels)
 end
 
 --- @param name string
@@ -151,19 +123,6 @@ function Metrics:_build_key(name, labels)
     return name .. "{" .. table.concat(parts, ",") .. "}"
 end
 
---- @param base_name string
---- @param value? number
---- @param labels? table<string, any>
-function Metrics:inc_composite_failure(base_name, value, labels)
-    local composite_config = self.composites[base_name]
-    if not composite_config then
-        self.log_error("Composite metric not registered: " .. base_name)
-    end
-
-    local counter_name = "failed_" .. base_name .. composite_config.counter_suffix
-    self:inc_counter(counter_name, value, labels)
-end
-
 --- @param name string
 --- @param value? number
 --- @param labels? table<string, any>
@@ -181,32 +140,6 @@ function Metrics:inc_counter(name, value, labels)
     else
         self.metrics_dict:incr(key, value)
     end
-end
-
---- @param config CompositeMetricConfig
-function Metrics:register_composite(config)
-    -- Check if already registered
-    if self.composites[config.name] then
-        return
-    end
-
-    local label_values = config.label_values or {}
-    local histogram_suffix = config.histogram_suffix or "_seconds"
-    local counter_suffix = config.counter_suffix or "_total"
-    local buckets = config.buckets
-
-    local histogram_name = "success_" .. config.name .. histogram_suffix
-    local counter_name = "failed_" .. config.name .. counter_suffix
-
-    self.composites[config.name] = {
-        label_values = label_values,
-        histogram_suffix = histogram_suffix,
-        counter_suffix = counter_suffix,
-        buckets = buckets
-    }
-
-    self:register_histogram(histogram_name, label_values, buckets)
-    self:register_counter(counter_name, label_values)
 end
 
 --- @param name string

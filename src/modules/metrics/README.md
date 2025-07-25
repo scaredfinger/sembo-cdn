@@ -7,7 +7,7 @@ A thread-safe Prometheus metrics collection module for OpenResty environments, d
 - **Thread-Safe**: Atomic operations prevent race conditions in multi-worker environments
 - **Prometheus Compatible**: Standard exposition format with automatic type annotations
 - **Flexible Labels**: Dynamic label combinations with pre-registration optimization
-- **Composite Metrics**: Success/failure patterns with single registration
+- **Success/Failure Tracking**: Automatic success labeling for histogram metrics
 - **Memory Efficient**: Pre-initialization strategy avoids runtime allocation issues
 
 ## Quick Start
@@ -16,24 +16,21 @@ A thread-safe Prometheus metrics collection module for OpenResty environments, d
 local Metrics = require "modules.metrics.index"
 local metrics = Metrics.new(ngx.shared.metrics)
 
--- Register composite metrics for request tracking
-metrics:register_composite({
-    name = "api_request",
-    help = "API request performance metrics",
-    label_values = {
-        method = {"GET", "POST", "PUT", "DELETE"},
-        route = {"/users", "/orders", "/health"},
-        status = {"200", "404", "500"}
-    }
-})
+-- Register histogram metrics for request tracking
+-- Success labels are automatically added
+metrics:register_histogram("api_request", {
+    method = {"GET", "POST", "PUT", "DELETE"},
+    route = {"/users", "/orders", "/health"},
+    status = {"200", "404", "500"}
+}, { 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0 })
 
 -- Record successful requests
-metrics:observe_composite_success("api_request", 0.125, {
+metrics:observe_histogram_success("api_request", 0.125, {
     method="GET", route="/users", status="200"
 })
 
--- Record failed requests
-metrics:inc_composite_failure("api_request", 1, {
+-- Record failed requests  
+metrics:observe_histogram_failure("api_request", 0.250, {
     method="POST", route="/orders", status="500"
 })
 
@@ -53,63 +50,46 @@ local metrics = Metrics.new(ngx.shared.metrics)
 
 ### Registration Methods
 
-#### Composite Metrics (Recommended)
-Register both success histogram and failure counter with shared labels:
+#### Histogram Metrics with Automatic Success Labeling
+Register histogram metrics that automatically include success/failure labels:
 
 ```lua
-metrics:register_composite({
-    name = "database_operation",
-    help = "Database operation metrics",
-    label_values = {
-        operation = {"SELECT", "INSERT", "UPDATE"},
-        table = {"users", "orders", "products"}
-    },
-    histogram_suffix = "_duration_seconds",
-    counter_suffix = "_failures_total",
-    buckets = {0.001, 0.01, 0.1, 1.0, 10.0}
-})
+metrics:register_histogram("database_operation", {
+    operation = {"SELECT", "INSERT", "UPDATE"},
+    table = {"users", "orders", "products"}
+}, {0.001, 0.01, 0.1, 1.0, 10.0})
+-- Success labels {"true", "false"} are automatically added
 ```
 
-#### Individual Metrics
+#### Counter Metrics
 ```lua
 -- Counter for simple counting
 metrics:register_counter("cache_operations_total", {
     operation = {"GET", "SET", "DELETE"},
     status = {"hit", "miss", "error"}
 })
-
--- Histogram for timing measurements
-metrics:register_histogram("response_time_seconds", {
-    endpoint = {"/api/users", "/api/orders"},
-    method = {"GET", "POST"}
-}, {0.1, 0.5, 1.0, 2.5, 5.0})
 ```
 
 ### Observation Methods
 
-#### Composite Operations
+#### Success/Failure Operations
 ```lua
--- Record successful operation
-metrics:observe_composite_success("database_operation", 0.025, {
+-- Record successful operation with timing
+metrics:observe_histogram_success("database_operation", 0.025, {
     operation="SELECT", table="users"
 })
 
--- Record failed operation
-metrics:inc_composite_failure("database_operation", 1, {
+-- Record failed operation with timing
+metrics:observe_histogram_failure("database_operation", 0.150, {
     operation="INSERT", table="orders"
 })
 ```
 
-#### Individual Metrics
+#### Counter Operations
 ```lua
 -- Increment counter
 metrics:inc_counter("cache_operations_total", 1, {
     operation="GET", status="hit"
-})
-
--- Observe histogram value
-metrics:observe_histogram("response_time_seconds", 0.125, {
-    endpoint="/api/users", method="GET"
 })
 ```
 
@@ -160,20 +140,18 @@ metrics:register_counter("requests_total", {
 })
 ```
 
-### 2. Use Composite Metrics for Success/Failure Patterns
+### 2. Use Histogram Metrics with Success Labeling
 ```lua
 -- Single registration for both success and failure tracking
-metrics:register_composite({
-    name = "api_operation",
-    label_values = {
-        operation = {"user_create", "order_process", "payment_charge"}
-    }
+metrics:register_histogram("api_operation", {
+    operation = {"user_create", "order_process", "payment_charge"}
 })
+-- Success labels are automatically added: success={"true", "false"}
 ```
 
 ### 3. Monitor Label Cardinality
 ```lua
--- Good: Limited combinations (3 × 4 = 12 metrics)
+-- Good: Limited combinations (3 × 4 × 2 = 24 metrics including success labels)
 {method = {"GET", "POST", "PUT"}, status = {"200", "404", "500", "503"}}
 
 -- Bad: High cardinality (avoid user IDs, timestamps, etc.)
@@ -216,9 +194,9 @@ local function create_metrics_middleware(metrics, metric_name)
         }
         
         if success and response.status < 400 then
-            metrics:observe_composite_success(metric_name, duration, labels)
+            metrics:observe_histogram_success(metric_name, duration, labels)
         else
-            metrics:inc_composite_failure(metric_name, 1, labels)
+            metrics:observe_histogram_failure(metric_name, duration, labels)
         end
         
         return response
@@ -243,7 +221,7 @@ end
 **Performance Problems**
 - Pre-register all label combinations
 - Avoid high-cardinality labels
-- Use composite metrics for related operations
+- Use histogram metrics with automatic success labeling
 
 ### Debug Information
 ```lua

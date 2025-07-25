@@ -1,7 +1,7 @@
 # Metrics Module Technical Analysis
 
 ## Overview
-The metrics module provides thread-safe Prometheus metrics collection for OpenResty environments, specifically designed to handle race conditions in multi-worker scenarios.
+The metrics module provides thread-safe Prometheus metrics collection for OpenResty environments, specifically designed to handle race conditions in multi-worker scenarios with automatic success/failure labeling.
 
 ## Architecture Design
 
@@ -9,6 +9,7 @@ The metrics module provides thread-safe Prometheus metrics collection for OpenRe
 - **Factory Pattern**: `Metrics.new()` constructor with dependency injection
 - **Builder Pattern**: Internal key building with consistent label serialization
 - **Template Method**: Standardized metric registration and observation workflow
+- **Automatic Labeling**: Success labels automatically added to all histograms
 
 ### Race Condition Prevention
 **Challenge**: OpenResty's multi-worker architecture creates race conditions when multiple workers access shared metrics simultaneously.
@@ -25,10 +26,10 @@ The metrics module provides thread-safe Prometheus metrics collection for OpenRe
 -- Metric key format
 "metric_name:label1=value1,label2=value2_suffix"
 
--- Examples
-"http_requests_total:method=GET,status=200"
-"response_time_seconds:method=GET,route=/api_sum"
-"response_time_seconds:method=GET,route=/api_count"
+-- Examples with automatic success labeling
+"http_requests_total:method=GET,status=200,success=true"
+"response_time_seconds:method=GET,route=/api,success=true_sum"
+"response_time_seconds:method=GET,route=/api,success=false_count"
 ```
 
 ## Implementation Details
@@ -44,29 +45,31 @@ if not metrics_dict:get(key) then
 end
 ```
 
-### Label Management
-The API automatically extracts label names from `label_values` dictionary keys:
+### Automatic Success Labeling
+The system automatically adds success labels to all histogram metrics:
 
 ```lua
--- Automatic label extraction
-metrics:register_counter("requests_total", {
+-- Registration automatically adds success labels
+metrics:register_histogram("api_request", {
     method = {"GET", "POST"},    -- Labels: method
     status = {"200", "404"}      -- Labels: status
 })
+-- Automatically includes: success = {"true", "false"}
 ```
 
-### Composite Metrics
-Single registration creates both success histogram and failure counter:
+### Histogram Success/Failure Operations
+Simplified API with automatic success labeling:
 
 ```lua
--- Creates two metrics with shared labels
-metrics:register_composite({
-    name = "api_request",
-    label_values = {method = {"GET", "POST"}}
+-- Success operation (adds success="true")
+metrics:observe_histogram_success("api_request", 0.125, {
+    method="GET", status="200"
 })
--- Results in:
--- - success_api_request_seconds (histogram)
--- - failed_api_request_total (counter)
+
+-- Failure operation (adds success="false")  
+metrics:observe_histogram_failure("api_request", 0.250, {
+    method="POST", status="500"
+})
 ```
 
 ## Performance Characteristics
@@ -80,6 +83,7 @@ metrics:register_composite({
 - **Metric Storage**: ~50 bytes per metric key
 - **Label Serialization**: ~20 bytes per label combination
 - **Histogram Buckets**: ~40 bytes per bucket per label combination
+- **Success Labels**: Additional ~10 bytes per metric for success/failure labels
 
 ### Scalability
 - **Worker Isolation**: Each worker maintains independent metrics
@@ -90,16 +94,18 @@ metrics:register_composite({
 
 ### Middleware Integration
 ```lua
--- Metrics middleware wraps operations
+-- Metrics middleware wraps operations with automatic success labeling
 local function metrics_middleware(request, next)
     local start_time = ngx.now()
     local success, response = pcall(next, request)
     local duration = ngx.now() - start_time
     
-    if success then
-        metrics:observe_composite_success("operation", duration, labels)
+    local labels = {method = request.method, route = request.route}
+    
+    if success and response.status < 400 then
+        metrics:observe_histogram_success("operation", duration, labels)
     else
-        metrics:inc_composite_failure("operation", 1, labels)
+        metrics:observe_histogram_failure("operation", duration, labels)
     end
     
     return response
@@ -108,10 +114,13 @@ end
 
 ### Prometheus Export
 ```lua
--- Standard Prometheus exposition format
+-- Standard Prometheus exposition format with success labels
 -- HELP metric_name Description
--- TYPE metric_name counter|histogram
-metric_name{label1="value1",label2="value2"} 42 timestamp
+-- TYPE metric_name histogram
+metric_name_sum{label1="value1",success="true"} 42.5
+metric_name_count{label1="value1",success="true"} 10
+metric_name_bucket{label1="value1",success="true",le="0.1"} 5
+metric_name_bucket{label1="value1",success="true",le="+Inf"} 10
 ```
 
 ## Error Handling
@@ -133,6 +142,7 @@ metric_name{label1="value1",label2="value2"} 42 timestamp
 - **Label Handling**: Edge cases and special characters
 - **Prometheus Format**: Output format validation
 - **Error Conditions**: Shared dictionary failures
+- **Success Labeling**: Automatic success label addition testing
 
 ### Integration Tests
 - **Multi-Worker**: Actual OpenResty worker concurrency
@@ -162,7 +172,7 @@ local usage_percent = (capacity - free_space) / capacity * 100
 ### Best Practices
 1. **Pre-register**: Define all expected label combinations during startup
 2. **Limit Cardinality**: Avoid high-cardinality labels (user IDs, timestamps)
-3. **Use Composite**: Prefer composite metrics for success/failure patterns
+3. **Use Histograms**: Prefer histogram metrics with automatic success labeling
 4. **Monitor Usage**: Track shared dictionary capacity and performance
 
 ## Future Enhancements
@@ -179,16 +189,27 @@ local usage_percent = (capacity - free_space) / capacity * 100
 - **Streaming Export**: Large metric sets without memory spikes
 - **Conditional Updates**: Only update metrics when values change
 
-This implementation provides a robust, scalable foundation for metrics collection in high-performance OpenResty applications while maintaining correctness in concurrent environments.
-1. **Histogram Buckets**: Currently supports configurable buckets with reasonable defaults
-2. **Metric Cleanup**: No TTL or cleanup mechanism for old metrics
-3. **Memory Monitoring**: No built-in memory usage tracking
-4. **Batch Operations**: Could optimize multiple observations
+## Current Implementation Status
+
+### Completed Features
+1. **Histogram Metrics**: Full histogram support with automatic success labeling
+2. **Thread Safety**: Atomic operations prevent race conditions
+3. **Memory Efficiency**: Pre-initialization strategy
+4. **Prometheus Export**: Standard exposition format
+5. **Automatic Labeling**: Success labels added automatically to all histograms
+
+### Areas for Improvement
+1. **Metric Cleanup**: No TTL or cleanup mechanism for old metrics
+2. **Memory Monitoring**: No built-in memory usage tracking
+3. **Batch Operations**: Could optimize multiple observations
+4. **Counter Metrics**: Still available but less commonly used
 
 ### Integration Points
 - **Handler**: `/metrics` endpoint for Prometheus scraping
 - **Shared Dictionary**: `ngx.shared.metrics` dependency
 - **Utils Module**: Logging integration
+
+This implementation provides a robust, scalable foundation for metrics collection in high-performance OpenResty applications while maintaining correctness in concurrent environments and simplifying success/failure tracking.
 
 ### Security Considerations
 - No input validation on metric names (potential for injection)
@@ -215,7 +236,7 @@ This implementation provides a robust, scalable foundation for metrics collectio
 -- Current API
 metrics:register_histogram(name, label_values, buckets)
 metrics:register_counter(name, label_values)
-metrics:register_composite(config)
+metrics:register_histogram(config)
 ```
 
 ### Code Quality Improvements
