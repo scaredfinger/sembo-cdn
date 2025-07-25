@@ -1,5 +1,5 @@
-local metrics = require "handlers.metrics.instance"
-local metrics_names = require "handlers.metrics.names"
+local metrics = require "utils.metrics.instance"
+local metrics_names = require "utils.metrics.names"
 
 --- @type SharedDictionary
 local shared_metrics = ngx.shared.metrics

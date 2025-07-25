@@ -1,8 +1,8 @@
 local MetricsMiddleware = require("modules.metrics.middleware")
 local routes_config = require "handlers.utils.routes"
 
-local metrics = require("handlers.metrics.instance")
-local metrics_names = require("handlers.metrics.names")
+local metrics = require("utils.metrics.instance")
+local metrics_names = require("utils.metrics.names")
 
 local instance = MetricsMiddleware:new(
     metrics,

@@ -6,9 +6,9 @@ for _, pattern in ipairs(routes_config.patterns) do
 end
 table.insert(route_names, routes_config.fallback)
 
-local metrics = require "handlers.metrics.instance"
+local metrics = require "utils.metrics.instance"
 
-local metrics_names = require "handlers.metrics.names"
+local metrics_names = require "utils.metrics.names"
 
 metrics:register_histogram(metrics_names.upstream_request, {
   method = { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
