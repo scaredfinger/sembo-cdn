@@ -62,6 +62,7 @@ end
 --- @param labels table<string, any>
 --- @param func function
 --- @param ... any
+--- @return any
 function Metrics:measure_execution(histogram_name, labels, func, ...)
     local start_time = ngx.now()
     local success, result = pcall(func, ...)

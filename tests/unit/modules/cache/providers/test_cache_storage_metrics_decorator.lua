@@ -45,6 +45,23 @@ describe("CacheStorageMetricsDecorator", function()
                     duration = duration,
                     labels = labels
                 })
+            end,
+            measure_execution = function(self, histogram_name, labels, func, ...)
+                local start_time = current_time
+                
+                local success, result = pcall(func, ...)
+                
+                local end_time = current_time + 10.0  -- Always add 10.0 for the timing overhead
+                local duration = end_time - start_time
+                current_time = end_time
+                
+                if success then
+                    self:observe_histogram_success(histogram_name, duration, labels)
+                    return result
+                else
+                    self:observe_histogram_failure(histogram_name, duration, labels)
+                    error(result)
+                end
             end
         }
 
@@ -56,8 +73,7 @@ describe("CacheStorageMetricsDecorator", function()
         decorator = CacheStorageMetricsDecorator:new(
             mock_inner,
             mock_metrics,
-            "redis",
-            mock_now
+            "redis"
         )
     end)
 
@@ -72,10 +88,6 @@ describe("CacheStorageMetricsDecorator", function()
 
         it("should use provided cache name", function()
             assert.are.equal("redis", decorator.cache_name)
-        end)
-
-        it("should use provided timing function", function()
-            assert.are.equal(mock_now, decorator.now)
         end)
     end)
 
