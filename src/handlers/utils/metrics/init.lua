@@ -17,7 +17,8 @@ metrics:register_histogram(metrics_names.upstream_request, {
 }, { 0.1, 0.5, 1, 2, 5, 10, 20, 40, 120 })
 
 metrics:register_histogram(metrics_names.tag_operation, {
-  operation = { "get", "set", "delete" }
+  operation = { "add_key_to_tag", "remove_key_from_tag", "get_keys_for_tag", "del_by_tag" },
+  provider = { "redis" }
 }, { 0.01, 0.05, 0.1, 0.5, 1, 2 })
 
 metrics:register_histogram(metrics_names.cache_operation, {

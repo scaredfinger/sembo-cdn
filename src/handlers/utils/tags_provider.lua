@@ -25,4 +25,10 @@ local function close_connection(connection)
 end
 
 local redis_provider = RedisTagsProvider:new(open_connection, close_connection)
-return redis_provider
+
+local TagsProviderMetricsDecorator = require "modules.surrogate.providers.tags_provider_metrics_decorator"
+local metrics = require "handlers.utils.metrics.instance"
+local metrics_name = require "handlers.utils.metrics.names"
+local instance = TagsProviderMetricsDecorator:new(redis_provider, metrics, metrics_name.tag_operation, "redis")
+
+return instance
