@@ -25,7 +25,8 @@ definitions:
           - echo "Image built successfully:"
           - echo "  ${IMAGE_TAG}"
           - echo "  ${IMAGE_LATEST}"
-          - 'echo "{\"version\":\"$(date +%Y.%m.%d)\",\"commit\":\"$BITBUCKET_COMMIT\",\"build_number\":\"$BITBUCKET_BUILD_NUMBER\",\"image\":\"${IMAGE_TAG}\"}" > docker-image-info.txt'
+          - docker push ${IMAGE_TAG}
+          - docker push ${IMAGE_LATEST}
         services:
           - docker
 
