@@ -91,8 +91,8 @@ For complete production setup, see [Production Readiness Assessment](PRODUCTION_
 |----------|---------|-------------|
 | `REDIS_HOST` | `127.0.0.1` | Redis server hostname |
 | `REDIS_PORT` | `6379` | Redis server port |
-| `BACKEND_HOST` | `localhost` | Backend server hostname |
-| `BACKEND_PORT` | `8080` | Backend server port |
+| `UPSTREAM_HOST` | `localhost` | Backend server hostname |
+| `UPSTREAM_PORT` | `8080` | Backend server port |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
 | `ROUTE_PATTERNS_FILE` | `/config/route-patterns.json` | Path to route patterns configuration |
 
@@ -173,7 +173,7 @@ busted tests/integration/ --verbose
 - `requests_total` - Total requests by route, method, and status
 - `cache_hits_total` / `cache_misses_total` - Cache performance
 - `response_time_seconds` - Response time histogram
-- `backend_errors_total` - Backend error tracking
+- `upstream_errors_total` - Backend error tracking
 
 ## License
 

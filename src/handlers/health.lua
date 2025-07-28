@@ -43,17 +43,17 @@ else
     redis_stats = { connected = false, error = connection_error or "unknown error" }
 end
 
-local backend_config = config.get_backend_config()
-local backend_host = backend_config.host
-local backend_port = backend_config.port
-local backend_healthy = true
-local backend_status = "No health check configured"
+local upstream_config = config.get_upstream_config()
+local upstream_host = upstream_config.host
+local upstream_port = upstream_config.port
+local upstream_healthy = true
+local upstream_status = "No health check configured"
 
-if backend_config.healthcheck_path and backend_config.healthcheck_path ~= "" then
+if upstream_config.healthcheck_path and upstream_config.healthcheck_path ~= "" then
     local httpc = http.new()
-    local backend_url = "http://" .. backend_host .. ":" .. backend_port .. backend_config.healthcheck_path
+    local upstream_url = "http://" .. upstream_host .. ":" .. upstream_port .. upstream_config.healthcheck_path
     
-    local res, err = httpc:request_uri(backend_url, {
+    local res, err = httpc:request_uri(upstream_url, {
         method = "GET",
         headers = {
             ["User-Agent"] = "Sembo-CDN-HealthCheck/1.0"
@@ -62,17 +62,17 @@ if backend_config.healthcheck_path and backend_config.healthcheck_path ~= "" the
     })
     
     if not res then
-        backend_healthy = false
-        backend_status = "Error connecting to backend: " .. (err or "unknown error")
+        upstream_healthy = false
+        upstream_status = "Error connecting to backend: " .. (err or "unknown error")
     else
-        backend_healthy = res.status >= 200 and res.status < 300
-        backend_status = "Status code: " .. res.status
+        upstream_healthy = res.status >= 200 and res.status < 300
+        upstream_status = "Status code: " .. res.status
     end
 else
-    backend_status = "Assumed healthy (no healthcheck path configured)"
+    upstream_status = "Assumed healthy (no healthcheck path configured)"
 end
 
-local overall_healthy = redis_healthy and backend_healthy
+local overall_healthy = redis_healthy and upstream_healthy
 
 local health_data = {
     status = overall_healthy and "healthy" or "unhealthy",
@@ -87,12 +87,12 @@ local health_data = {
             stats = redis_stats
         },
         backend = {
-            status = backend_healthy and "healthy" or "unhealthy",
-            endpoint = backend_host .. ":" .. backend_port,
-            message = backend_status,
+            status = upstream_healthy and "healthy" or "unhealthy",
+            endpoint = upstream_host .. ":" .. upstream_port,
+            message = upstream_status,
             health_check = {
-                enabled = backend_config.healthcheck_path and backend_config.healthcheck_path ~= "",
-                path = backend_config.healthcheck_path or "not configured"
+                enabled = upstream_config.healthcheck_path and upstream_config.healthcheck_path ~= "",
+                path = upstream_config.healthcheck_path or "not configured"
             }
         }
     }

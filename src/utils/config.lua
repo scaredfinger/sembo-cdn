@@ -8,8 +8,8 @@ local defaults = {
     redis_pool_size = 100,
     redis_backlog = 100,
     redis_default_ttl = 300,
-    backend_host = "localhost",
-    backend_port = 8080,
+    upstream_host = "localhost",
+    upstream_port = 8080,
     env = "production"
 }
 
@@ -32,9 +32,9 @@ local config = {
         default_ttl = defaults.redis_default_ttl
     },
     backend = {
-        host = get_env("BACKEND_HOST", defaults.backend_host),
-        port = tonumber(get_env("BACKEND_PORT", defaults.backend_port)),
-        healthcheck_path = get_env("BACKEND_HEALTHCHECK_PATH", "")
+        host = get_env("UPSTREAM_HOST", defaults.upstream_host),
+        port = tonumber(get_env("UPSTREAM_PORT", defaults.upstream_port)),
+        healthcheck_path = get_env("UPSTREAM_HEALTHCHECK_PATH", "")
     },
     env = get_env("ENV", defaults.env)
 }
@@ -52,12 +52,12 @@ local function get_redis_config()
     return config.redis
 end
 
-local function get_backend_config()
+local function get_upstream_config()
     return config.backend
 end
 
 --- @return string
-local function get_backend_url()
+local function get_upstream_url()
     local backend = config.backend
     return "http://" .. backend.host .. ":" .. backend.port
 end
@@ -74,8 +74,8 @@ return {
     get_log_level_value = get_log_level_value,
     get_log_level = get_log_level,
     get_redis_config = get_redis_config,
-    get_backend_config = get_backend_config,
-    get_backend_url = get_backend_url,
+    get_upstream_config = get_upstream_config,
+    get_upstream_url = get_upstream_url,
     get_all = get_all,
     get_log_levels = get_log_levels
 }

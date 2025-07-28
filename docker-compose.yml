@@ -10,9 +10,9 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      BACKEND_HOST: wiremock
-      BACKEND_PORT: 8080
-      BACKEND_HEALTHCHECK_PATH: /__admin/health
+      UPSTREAM_HOST: wiremock
+      UPSTREAM_PORT: 8080
+      UPSTREAM_HEALTHCHECK_PATH: /__admin/health
       LOG_LEVEL: debug
       ENV: development
       ROUTE_PATTERNS_FILE: /usr/local/openresty/nginx/lua/config/route-patterns.example.json

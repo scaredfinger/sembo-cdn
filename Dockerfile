@@ -31,8 +31,8 @@ RUN mkdir -p /usr/local/openresty/nginx/logs
 # Default environment variables
 ENV REDIS_HOST=redis \
     REDIS_PORT=6379 \
-    BACKEND_HOST=backend \
-    BACKEND_PORT=80 \
+    UPSTREAM_HOST=backend \
+    UPSTREAM_PORT=80 \
     LOG_LEVEL=info \
     ENV=production
 
