@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN opm get sjnam/lua-resty-brotli
+RUN opm get fffonion/lua-resty-openssl
 RUN luarocks install lua-resty-http \
     && luarocks install lua-resty-redis \
     && luarocks install lua-ffi-zlib \
