@@ -31,6 +31,23 @@ Each middleware can short-circuit the chain (e.g., cache hit) or enhance the req
 
 For detailed architecture information, see [Technical Architecture](ai-analysis.md).
 
+## Dependencies
+
+### Core Runtime Dependencies
+- **OpenResty**: High-performance web platform based on Nginx and LuaJIT
+- **lua-resty-http**: HTTP client library for making upstream requests
+- **lua-resty-redis**: Redis client library for cache operations
+- **lua-resty-openssl**: OpenSSL bindings required for SSL/TLS and mTLS support
+- **lua-resty-brotli**: Brotli compression support
+- **lua-ffi-zlib**: ZLib compression support
+
+### Development Dependencies
+- **WireMock**: API mocking for integration tests
+- **Prometheus**: Metrics collection and monitoring
+- **Docker & Docker Compose**: Containerization and orchestration
+
+All dependencies are automatically installed during Docker image build. For manual installation or debugging, see the Dockerfile for specific version requirements.
+
 ## Quick Start
 
 ### Development with DevContainer (Recommended)

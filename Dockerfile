@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf lua-resty-redis \
     && rm -rf /var/lib/apt/lists/*
 
+RUN opm get fffonion/lua-resty-openssl
 RUN opm get sjnam/lua-resty-brotli
 RUN luarocks install lua-ffi-zlib \
     && luarocks install lua-zlib 
