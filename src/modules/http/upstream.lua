@@ -26,7 +26,8 @@ function Upstream:execute(request)
         path = request.path,
         headers = request.headers,
         body = request.body,
-        ssl_verify = false, -- Adjust as necessary for your SSL configuration
+        ssl_verify = false,
+        ssl = false
     })
 
     ngx.log(ngx.DEBUG,

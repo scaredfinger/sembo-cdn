@@ -58,7 +58,9 @@ if upstream_config.healthcheck_path and upstream_config.healthcheck_path ~= "" t
         headers = {
             ["User-Agent"] = "Sembo-CDN-HealthCheck/1.0"
         },
-        keepalive_timeout = 2000 -- 2 seconds
+        keepalive_timeout = 2000,
+        ssl_verify = false,
+        ssl = false
     })
     
     if not res then
