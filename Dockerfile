@@ -7,17 +7,12 @@ RUN apt-get update && apt-get install -y \
     luarocks \
     zlib1g-dev \
     libbrotli-dev \
-    && git clone https://github.com/pintsized/lua-resty-http.git \
-    && cp lua-resty-http/lib/resty/http* /usr/local/openresty/lualib/resty/ \
-    && rm -rf lua-resty-http \
-    && git clone https://github.com/openresty/lua-resty-redis.git \
-    && cp lua-resty-redis/lib/resty/redis.lua /usr/local/openresty/lualib/resty/ \
-    && rm -rf lua-resty-redis \
     && rm -rf /var/lib/apt/lists/*
 
-RUN opm get fffonion/lua-resty-openssl
 RUN opm get sjnam/lua-resty-brotli
-RUN luarocks install lua-ffi-zlib \
+RUN luarocks install lua-resty-http \
+    && luarocks install lua-resty-redis \
+    && luarocks install lua-ffi-zlib \
     && luarocks install lua-zlib 
 
 # Copy configuration and Lua files
