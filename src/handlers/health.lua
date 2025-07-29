@@ -2,11 +2,15 @@ local cjson = require "cjson"
 local config = require "utils.config"
 local http = require "resty.http"
 local redis = require("resty.redis")
+local logs = require "utils.logs"
+
+logs.info("Health check endpoint called")
 
 ngx.header["Content-Type"] = "application/json"
 
 local redis_client = redis:new()
 local redis_config = config.get_redis_config()
+logs.debug("Redis config: host=" .. redis_config.host .. ", port=" .. redis_config.port .. ", timeout=" .. redis_config.timeout)
 redis_client:set_timeout(redis_config.timeout)
 local connection_established, connection_error = redis_client:connect(redis_config.host, redis_config.port)
 
@@ -15,10 +19,12 @@ local redis_status = "Unknown"
 local redis_stats = {}
 
 if connection_established then
+    logs.debug("Redis connection established successfully")
     local ping_result, ping_error = redis_client:ping()
     if ping_result == "PONG" then
         redis_healthy = true
         redis_status = "Connected and responsive"
+        logs.debug("Redis ping successful")
         
         local info_result, info_error = redis_client:info("memory")
         if info_result then
@@ -36,11 +42,13 @@ if connection_established then
     else
         redis_status = "Connected but not responsive: " .. (ping_error or "ping failed")
         redis_stats = { connected = false, error = ping_error or "ping failed" }
+        logs.warn("Redis ping failed: " .. (ping_error or "ping failed"))
     end
     redis_client:close()
 else
     redis_status = "Connection failed: " .. (connection_error or "unknown error")
     redis_stats = { connected = false, error = connection_error or "unknown error" }
+    logs.error("Redis connection failed: " .. (connection_error or "unknown error"))
 end
 
 local upstream_config = config.get_upstream_config()
@@ -49,9 +57,13 @@ local upstream_port = upstream_config.port
 local upstream_healthy = true
 local upstream_status = "No health check configured"
 
+logs.debug("Upstream config: host=" .. upstream_host .. ", port=" .. upstream_port .. ", healthcheck_path=" .. (upstream_config.healthcheck_path or "none"))
+
 if upstream_config.healthcheck_path and upstream_config.healthcheck_path ~= "" then
+    logs.debug("Starting upstream health check")
     local httpc = http.new()
     local upstream_url = "http://" .. upstream_host .. ":" .. upstream_port .. upstream_config.healthcheck_path
+    logs.debug("Upstream health check URL: " .. upstream_url)
     
     local res, err = httpc:request_uri(upstream_url, {
         method = "GET",
@@ -66,15 +78,26 @@ if upstream_config.healthcheck_path and upstream_config.healthcheck_path ~= "" t
     if not res then
         upstream_healthy = false
         upstream_status = "Error connecting to backend: " .. (err or "unknown error")
+        logs.error("Upstream health check failed: " .. (err or "unknown error"))
     else
         upstream_healthy = res.status >= 200 and res.status < 300
         upstream_status = "Status code: " .. res.status
+        if upstream_healthy then
+            logs.debug("Upstream health check successful: status " .. res.status)
+        else
+            logs.warn("Upstream health check returned unhealthy status: " .. res.status)
+        end
     end
 else
     upstream_status = "Assumed healthy (no healthcheck path configured)"
+    logs.debug("No upstream health check configured, assuming healthy")
 end
 
 local overall_healthy = redis_healthy and upstream_healthy
+
+logs.info("Health check complete - Redis: " .. (redis_healthy and "healthy" or "unhealthy") .. 
+         ", Upstream: " .. (upstream_healthy and "healthy" or "unhealthy") .. 
+         ", Overall: " .. (overall_healthy and "healthy" or "unhealthy"))
 
 local health_data = {
     status = overall_healthy and "healthy" or "unhealthy",
@@ -102,7 +125,10 @@ local health_data = {
 
 if overall_healthy then
     ngx.status = 200
+    logs.debug("Returning 200 OK with health data")
     ngx.say(cjson.encode(health_data))
 else
     ngx.status = 503
+    logs.warn("Returning 503 Service Unavailable with health data")
+    ngx.say(cjson.encode(health_data))
 end
