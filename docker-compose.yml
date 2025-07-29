@@ -8,6 +8,7 @@ services:
       - "8081:8080"
       - "9090:9090"  # metrics endpoint
     environment:
+      DNS_RESOLVER: 127.0.0.11
       REDIS_HOST: redis
       REDIS_PORT: 6379
       UPSTREAM_HOST: wiremock
